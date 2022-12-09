@@ -53,6 +53,9 @@ class RequestObject:
     def _aggregated_handle_ip(self, attr):
         self._handle_ip(attr, 'ip-dst', 'networkDestinationIPv4', 'networkDestinationIPv6')
         self._handle_ip(attr, 'ip-src', 'networkSourceIPv4', 'networkSourceIPv6')
+        if config.network_ignore_direction:
+            self._handle_ip(attr, 'ip-dst', 'networkIPv4', 'networkIPv6')
+            self._handle_ip(attr, 'ip-src', 'networkIPv4', 'networkIPv6')
 
     def _handle_file_hash(self, attr):
         if attr['type'] in MISP_HASH_TYPES:
