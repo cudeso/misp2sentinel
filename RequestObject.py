@@ -81,14 +81,26 @@ class RequestObject:
                 self.networkDestinationPort = port
                 if '.' in attr['value']:
                     self.networkDestinationIPv4 = ip
+                    if config.network_ignore_direction:
+                        self.networkIPv4 = ip
+                        self.networkPort = port
                 else:
                     self.networkDestinationIPv6 = ip
+                    if config.network_ignore_direction:
+                        self.networkIPv6 = ip
+                        self.networkPort = port
             elif attr['type'] == 'ip-src|port':
                 self.networkSourcePort = port
                 if '.' in attr['value']:
                     self.networkSourceIPv4 = ip
+                    if config.network_ignore_direction:
+                        self.networkIPv4 = ip
+                        self.networkPort = port
                 else:
                     self.networkSourceIPv6 = ip
+                    if config.network_ignore_direction:
+                        self.networkIPv6 = ip
+                        self.networkPort = port
 
     def _handle_special_cases(self, attr):
         self._aggregated_handle_ip(attr)
