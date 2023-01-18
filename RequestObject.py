@@ -20,6 +20,7 @@ class RequestObject:
         # self.tags = [tag['name'].strip() for tag in attr.get("Tag", [])]
         # Tags on attribute level
         self.tags = []
+        tags_remove = []
         for tag in attr.get("Tag", []):
             if config.misp_ignore_localtags:
                 if tag["local"] != 1:
@@ -27,7 +28,7 @@ class RequestObject:
         for tag in self.tags:
             if 'diamond-model:' in tag:
                 self.diamondModel = tag.split(':')[1]
-                self.tags.remove(tag)
+                tags_remove.append(tag)
             if 'kill-chain:' in tag:
                 kill_chain = tag.split(':')[1]
                 # Fix some Azure quirks
@@ -36,11 +37,13 @@ class RequestObject:
                 elif kill_chain == "Actions on Objectives":
                     kill_chain = "Actions"
                 self.killChain = [kill_chain]
-                self.tags.remove(tag)
+                tags_remove.append(tag)
             if 'sentinel-threattype' in tag:    # Override with attribute value
                 self.threatType = tag.split(':')[1]
-                self.tags.remove(tag)
+                tags_remove.append(tag)
 
+        for tag in tags_remove:
+            self.tags.remove(tag)
         self.additionalInformation = attr['comment']
 
     def _handle_ip(self, attr, attr_type, graph_v4_name, graph_v6_name):
