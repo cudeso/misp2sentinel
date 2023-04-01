@@ -111,6 +111,14 @@ class RequestObject:
         self._handle_email_src(attr)
         self._handle_ip_port(attr)
         self._handle_file_hash(attr)
+        self._handle_url(attr)
+
+    def _handle_url(self, attr):
+        if attr['type'] == 'url':
+            if not attr['value'].startswith(('http://', 'https://')):
+                self.url = "http://{}".format(attr['value'])
+            else:
+                self.url = attr['value']
 
     def _handle_domain_ip(self, attr):
         if attr['type'] == 'domain|ip':

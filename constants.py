@@ -50,6 +50,7 @@ MISP_HASH_TYPES = frozenset([
 
 MISP_SPECIAL_CASE_TYPES = frozenset([
     *MISP_HASH_TYPES,
+    'url',
     'ip-dst',
     'ip-src',
     'domain|ip',

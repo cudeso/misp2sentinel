@@ -122,6 +122,14 @@ def main():
                 parsed_event['description'] += attr['value']
             if attr['type'] in MISP_ACTIONABLE_TYPES:
                 parsed_event['request_objects'].append(RequestObject(attr))
+        for obj in event['Object']:
+            for attr in obj['Attribute']:
+                if attr['type'] == 'threat-actor':
+                    parsed_event['activityGroupNames'].append(attr['value'])
+                if attr['type'] == 'comment':
+                    parsed_event['description'] += attr['value']
+                if attr['type'] in MISP_ACTIONABLE_TYPES:
+                    parsed_event['request_objects'].append(RequestObject(attr))
         parsed_events.append(parsed_event)
     del events
     total_indicators = sum([len(v['request_objects']) for v in parsed_events])
