@@ -4,6 +4,7 @@ import datetime
 import os
 import json
 import copy
+import hashlib
 from constants import *
 
 
@@ -90,10 +91,15 @@ class RequestManager:
 
     @staticmethod
     def _get_request_hash(request):
-        return str(hash(frozenset({
-            k: str(v) for k, v in request.items()
-            if k != 'expirationDateTime' and k != 'lastReportedDateTime'
-        }.items())))
+        return hashlib.sha256(
+            json.dumps(
+                {
+                    k: v for k, v in request.items()
+                    if k not in ("expirationDateTime", "lastReportedDateTime")
+                },
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()
 
     def _log_post(self, response):
         # self._clear_screen()
