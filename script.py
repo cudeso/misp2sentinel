@@ -67,6 +67,8 @@ def _handle_tlp_level(parsed_event):
     for tag in parsed_event['tags']:
         if 'tlp:' in tag:
             parsed_event['tlpLevel'] = tag.split(':')[1].lower().capitalize()
+        if parsed_event['tlpLevel'] == 'Clear':
+            parsed_event['tlpLevel'] = 'White'
     if 'tlpLevel' not in parsed_event:
         parsed_event['tlpLevel'] = 'Red'
 
