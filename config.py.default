@@ -1,10 +1,17 @@
-graph_auth = {
+ms_auth = {
     'tenant': '<tenant id>',
     'client_id': '<client id>',
     'client_secret': '<client secret>',
+    #'scope': 'https://graph.microsoft.com/.default',
+    'scope': 'https://management.azure.com/.default',
+    'graph_api': False,
+    'workspace_id': '<workspace id>'
 }
-targetProduct = 'Azure Sentinel'
-action = 'alert'
+
+ms_useragent = 'MISP-1.0'
+ms_target_product = 'Azure Sentinel'    # targetProduct
+ms_passiveonly = False                  # passiveOnly
+ms_action = 'alert'                     # action
 
 misp_event_filters = {
     "published": 1,
@@ -12,15 +19,13 @@ misp_event_filters = {
     "to_ids": 1,
 }
 
-passiveOnly = False
-days_to_expire = 60
 misp_key = '<misp api_key>'
 misp_domain = '<misp url>'
 misp_verifycert = False
 
+days_to_expire = 60
 network_ignore_direction = True
-
 verbose_log = True
 write_post_json = False
 misp_ignore_localtags = True
-defaultConfidenceLevel = 50
+default_confidence = 50             # defaultConfidenceLevel

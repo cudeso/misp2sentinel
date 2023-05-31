@@ -29,20 +29,21 @@ def _get_events():
     return [event for event in events_for_each_filter[0] if event['id'] in event_ids_intersection]
 
 
+
 def _graph_post_request_body_generator(parsed_events):
     for event in parsed_events:
         request_body_metadata = {
             **{field: event[field] for field in REQUIRED_GRAPH_METADATA},
             **{field: event[field] for field in OPTIONAL_GRAPH_METADATA if field in event},
-            'action': config.action,
-            'passiveOnly': config.passiveOnly,
-            'targetProduct': config.targetProduct,
+            'action': config.ms_action,
+            'passiveOnly': config.ms_passiveonly,
+            'targetProduct': config.ms_target_product,
         }
 
         if len(request_body_metadata.get('threatType', [])) < 1:
             request_body_metadata['threatType'] = 'watchlist'
-        if config.defaultConfidenceLevel:
-            request_body_metadata["confidence"] = config.defaultConfidenceLevel
+        if config.default_confidence:
+            request_body_metadata["confidence"] = config.default_confidence
         for request_object in event['request_objects']:
             request_body = {
                 **request_body_metadata.copy(),
@@ -67,6 +68,8 @@ def _handle_tlp_level(parsed_event):
     for tag in parsed_event['tags']:
         if 'tlp:' in tag:
             parsed_event['tlpLevel'] = tag.split(':')[1].lower().capitalize()
+        if parsed_event['tlpLevel'] == 'Clear':
+            parsed_event['tlpLevel'] = 'White'
     if 'tlpLevel' not in parsed_event:
         parsed_event['tlpLevel'] = 'Red'
 
@@ -82,10 +85,10 @@ def main():
         # Delete an indicator
         request_manager = RequestManager(0)
         access_token = request_manager._get_access_token(
-            config.graph_auth[TENANT],
-            config.graph_auth[CLIENT_ID],
-            config.graph_auth[CLIENT_SECRET])
-        headers = {"Authorization": f"Bearer {access_token}", 'user-agent': 'MISP/1.0'}
+            config.ms_auth[TENANT],
+            config.ms_auth[CLIENT_ID],
+            config.ms_auth[CLIENT_SECRET])
+        headers = {"Authorization": f"Bearer {access_token}", 'user-agent': config.ms_auth[USER_AGENT]}
         request_body = {'value': [sys.argv[2]]}
         response = requests.post(GRAPH_BULK_DEL_URL, headers=headers, json=request_body).json()
         print(json.dumps(response, indent=2))
@@ -93,53 +96,80 @@ def main():
 
     config.verbose_log = ('-v' in sys.argv)
     print('fetching & parsing data from misp...')
-    events = _get_events()
-    parsed_events = list()
-    for event in events:
-        parsed_event = defaultdict(list)
+    if config.ms_auth["graph_api"] == True:
+        events = _get_events()
+        parsed_events = list()
+        for event in events:
+            parsed_event = defaultdict(list)
 
-        for key, mapping in EVENT_MAPPING.items():
-            parsed_event[mapping] = event.get(key, "")
+            for key, mapping in EVENT_MAPPING.items():
+                parsed_event[mapping] = event.get(key, "")
 
-        # Tags on event level
-        tags = []
-        for tag in event.get("Tag", []):
-            if 'sentinel-threattype' in tag['name']:    # Can be overriden on attribute level
-                parsed_event['threatType'] = tag['name'].split(':')[1]
-                continue
-            if config.misp_ignore_localtags:
-                if tag["local"] != 1:
-                    tags.append(tag['name'].strip())
-        parsed_event['tags'] = tags
-        _handle_diamond_model(parsed_event)
-        _handle_tlp_level(parsed_event)
-        _handle_timestamp(parsed_event)
+            # Tags on event level
+            tags = []
+            for tag in event.get("Tag", []):
+                if 'sentinel-threattype' in tag['name']:    # Can be overriden on attribute level
+                    parsed_event['threatType'] = tag['name'].split(':')[1]
+                    continue
+                if config.misp_ignore_localtags:
+                    if tag["local"] != 1:
+                        tags.append(tag['name'].strip())
+            parsed_event['tags'] = tags
+            _handle_diamond_model(parsed_event)
+            _handle_tlp_level(parsed_event)
+            _handle_timestamp(parsed_event)
 
-        for attr in event['Attribute']:
-            if attr['type'] == 'threat-actor':
-                parsed_event['activityGroupNames'].append(attr['value'])
-            if attr['type'] == 'comment':
-                parsed_event['description'] += attr['value']
-            if attr['type'] in MISP_ACTIONABLE_TYPES:
-                parsed_event['request_objects'].append(RequestObject(attr))
-        for obj in event['Object']:
-            for attr in obj['Attribute']:
+            for attr in event['Attribute']:
                 if attr['type'] == 'threat-actor':
                     parsed_event['activityGroupNames'].append(attr['value'])
                 if attr['type'] == 'comment':
                     parsed_event['description'] += attr['value']
                 if attr['type'] in MISP_ACTIONABLE_TYPES:
                     parsed_event['request_objects'].append(RequestObject(attr))
-        parsed_events.append(parsed_event)
-    del events
-    total_indicators = sum([len(v['request_objects']) for v in parsed_events])
+            for obj in event['Object']:
+                for attr in obj['Attribute']:
+                    if attr['type'] == 'threat-actor':
+                        parsed_event['activityGroupNames'].append(attr['value'])
+                    if attr['type'] == 'comment':
+                        parsed_event['description'] += attr['value']
+                    if attr['type'] in MISP_ACTIONABLE_TYPES:
+                        parsed_event['request_objects'].append(RequestObject(attr))
+            parsed_events.append(parsed_event)
+        del events
+        total_indicators = sum([len(v['request_objects']) for v in parsed_events])
+    else:
+        parsed_indicators = _get_events_stix()
+        total_indicators = len(parsed_indicators)
 
     with RequestManager(total_indicators) as request_manager:
-        for request_body in _graph_post_request_body_generator(parsed_events):
-            if config.verbose_log:
-                print(f"request body: {request_body}")
-            request_manager.handle_indicator(request_body)
+        if config.ms_auth["graph_api"] == True:
+            for request_body in _graph_post_request_body_generator(parsed_events):
+                if config.verbose_log:
+                    print(f"request body: {request_body}")
+                request_manager.handle_indicator(request_body)
+        else:
+            request_body = _ti_upload_request_body_generator(parsed_indicators)
+            request_manager.upload_indicators(request_body)
 
+def _ti_upload_request_body_generator(parsed_indicators):
+    return {"sourcesystem": "MISP", "value": parsed_indicators}
+
+def _get_events_stix():
+    misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert)
+    result_set = []
+    result = misp.search(controller='events', return_format='stix2', **config.misp_event_filters)
+    if result.get("objects", False):
+        stix2_objects = result.get("objects")
+        # Link this later to "reports" to get report information
+        # Also process with 'custom' x-misp-object objects
+        for element in stix2_objects:
+            if element.get("type", False) == "indicator":
+                element["name"] = "_replace_with_misp_event_title"
+                result_set.append(element)        
+    else:
+        print("Returned STIX2 bundle did not contain 'objects' key")
+    
+    return result_set
 
 if __name__ == '__main__':
     main()
