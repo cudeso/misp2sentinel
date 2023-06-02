@@ -14,6 +14,7 @@ import azure.functions as func
 import requests
 import json
 
+mispkey=os.getenv('mispkey')
 
 def _get_events():
     misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert)
