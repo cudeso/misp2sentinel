@@ -1,13 +1,15 @@
 # Step-by-Step Azure Function Setup
 
-This step-by-step instruction guides you through the process of setting up a complete Azure Function that will acquire Threat Intelligence from a MISP source, sanitize it, than writes it to 1 or multiple Microsoft Sentinel instances.
+This step-by-step instruction guides you through the process of setting up a complete Azure Function that will acquire Threat Intelligence from a MISP source, sanitize it, than writes it to 1 or multiple Microsoft Sentinel instances. 
+
+> This guide was originally written by [zolderik](https://github.com/zolderio/misp-to-sentinel/blob/main/INSTALL.md), I've made some changes to work with my updated version.
 
 The complete setup consists of several Azure components:
 
 1. **App Registration** - This app will get the permissions to write data to the ThreatIndicatores table of Sentinel
 2. **Keyvault** - contains the keys to automatically authenticate with the app registration
 3. **Function** - contains the scripts to retrieve information from a MISP source in interval, rewrite it to useful data and than place it in Sentinel through the app registration
-4. **NAT Gateway** - Optional component allowing the Azure Function to connect to MISP from a fixed IP-address, allowing it to be added to an access control list that might be protecting the MISP server
+4. **OPTIONAL - NAT Gateway** - Optional component allowing the Azure Function to connect to MISP from a fixed IP-address, allowing it to be added to an access control list that might be protecting the MISP server
 
 ## Prerequisities
 
