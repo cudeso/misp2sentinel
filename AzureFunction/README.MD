@@ -52,4 +52,11 @@ If the installation was successful, the MISP data should be written to your Sent
 ThreatIntelligenceIndicator
 ```
 
-Credits for this update goes to [cudeso](https://github.com/cudeso/misp2sentinel) for his work on upgrading the original MISP2Sentinel script and [zolderik](https://github.com/zolderio/misp-to-sentinel/tree/main) for his work on the Azure Function. I've simply spliced them together and added some improvements.
+## Credits
+
+Credits for this update goes to:
+
+* [cudeso](https://github.com/cudeso/misp2sentinel) for his work on upgrading the original MISP2Sentinel script
+* [zolderik](https://github.com/zolderio/misp-to-sentinel/tree/main) for his work on the Azure Function. 
+
+I've simply spliced them together and added some minor improvements.
