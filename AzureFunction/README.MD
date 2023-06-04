@@ -27,9 +27,9 @@ Full instructions in [INSTALL.md](../docs/INSTALL.MD)
 6. Modify config.py to your needs (event filter). 
 7. Upload the code to your Azure Function. 
    * If you are using VSCode, this can be done by clicking the Azure Function folder and selecting "Deploy to Function App", provided you have the Azure Functions extension installed.
-7. Add a "New application setting" (env variable) to your Azure Function named `tenants`. Create a reference to the key vault previously created.
-8. Do the same for `mispkey`.
-9. Add a "New application setting" (env variable) called `mispurl` and fill in the URL to your MISP-server.
+7. Add a "New application setting" (env variable) to your Azure Function named `tenants`. Create a reference to the key vault previously created (`@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/tenants/)`).
+8. Do the same for the `mispkey` secret (`@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/mispkey/)`)
+9. Add a "New application setting" (env variable) called `mispurl` and add the URL to your MISP-server (`https://<mispurl>`)
 10. Add a "New application setting" (env variable) `timerTriggerSchedule` and set it to run. If you're running against multiple tenants with a big filter, set it to run once every two hours or so. 
    * The `timerTriggerSchedule` takes a cron expression. For more information, see [Timer trigger for Azure Functions](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-timer?tabs=python-v2%2Cin-process&pivots=programming-language-python).
    * Run once every two hours cron expression: `0 */2 * * *`
