@@ -14,8 +14,6 @@ import azure.functions as func
 import requests
 import json
 
-mispkey=os.getenv('mispkey')
-
 def _get_events():
     misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert)
     if len(config.misp_event_filters) == 0:
@@ -73,6 +71,7 @@ def _handle_tlp_level(parsed_event):
 
 
 def pmain():
+    tenants = json.loads(os.getenv('tenants'))
     if '-r' in sys.argv:
         print("Retrieve indicators from Sentinel")
         RequestManager.read_tiindicators()
@@ -81,19 +80,24 @@ def pmain():
     if '-d' in sys.argv:
         print("Delete indicators from Sentinel")
         # Delete an indicator
-        request_manager = RequestManager(0)
-        access_token = request_manager._get_access_token(
-            config.graph_auth[TENANT],
-            config.graph_auth[CLIENT_ID],
-            config.graph_auth[CLIENT_SECRET])
-        headers = {"Authorization": f"Bearer {access_token}", 'user-agent': 'MISP/1.0'}
-        request_body = {'value': [sys.argv[2]]}
-        response = requests.post(GRAPH_BULK_DEL_URL, headers=headers, json=request_body).json()
-        print(json.dumps(response, indent=2))
-        sys.exit()
+        for key, value in tenants.items():
+            logging.info('Deleting from tenant {}'.format(key))
+            logging.info('GraphAuth client_id: {}'.format(config.graph_auth[CLIENT_ID]))
+            config.graph_auth[TENANT] = key
+            config.graph_auth[CLIENT_ID] = value['id']
+            config.graph_auth[CLIENT_SECRET] = value['secret']
+            request_manager = RequestManager(0)
+            access_token = request_manager._get_access_token(
+                config.graph_auth[TENANT],
+                config.graph_auth[CLIENT_ID],
+                config.graph_auth[CLIENT_SECRET])
+            headers = {"Authorization": f"Bearer {access_token}", 'user-agent': 'MISP/1.0'}
+            request_body = {'value': [sys.argv[2]]}
+            response = requests.post(GRAPH_BULK_DEL_URL, headers=headers, json=request_body).json()
+            print(json.dumps(response, indent=2))
+            sys.exit()
 
     config.verbose_log = ('-v' in sys.argv)
-    tenants = json.loads(os.getenv('tenants'))
     print('fetching & parsing data from misp...')
     events = _get_events()
     parsed_events = list()
@@ -137,11 +141,10 @@ def pmain():
     total_indicators = sum([len(v['request_objects']) for v in parsed_events])
     for key, value in tenants.items():
         logging.info('Writing to tenant {}'.format(key))
+        logging.info('GraphAuth client_id: {}'.format(config.graph_auth[CLIENT_ID]))
         config.graph_auth[TENANT] = key
         config.graph_auth[CLIENT_ID] = value['id']
         config.graph_auth[CLIENT_SECRET] = value['secret']
-        logging.info('GraphAuth_tenant: {}'.format(config.graph_auth[TENANT]))
-        logging.info('GraphAuth_id: {}'.format(config.graph_auth[CLIENT_ID]))
 
         with RequestManager(total_indicators) as request_manager:
             for request_body in _graph_post_request_body_generator(parsed_events):
