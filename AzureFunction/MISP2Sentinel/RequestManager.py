@@ -19,21 +19,22 @@ class RequestManager:
 
     RJUST = 5
 
-    def __init__(self, total_indicators):
+    def __init__(self, total_indicators, tenant):
         self.total_indicators = total_indicators
+        self.tenant = tenant
 
     def __enter__(self):
         try:
-            self.existing_indicators_hash_fd = open(EXISTING_INDICATORS_HASH_FILE_NAME, 'r+')
+            self.existing_indicators_hash_fd = open(EXISTING_INDICATORS_HASH_FILE_NAME+self.tenant+".json", 'r+')
             self.existing_indicators_hash = json.load(self.existing_indicators_hash_fd)
         except (FileNotFoundError, json.decoder.JSONDecodeError):
-            self.existing_indicators_hash_fd = open(EXISTING_INDICATORS_HASH_FILE_NAME, 'w')
+            self.existing_indicators_hash_fd = open(EXISTING_INDICATORS_HASH_FILE_NAME+self.tenant+".json", 'w')
             self.existing_indicators_hash = {}
         try:
-            self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME, 'r+')
+            self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME+self.tenant+".txt", 'r+')
             self.expiration_date = self.expiration_date_fd.read()
         except FileNotFoundError:
-            self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME, 'w')
+            self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME+self.tenant+".txt", 'w')
             self.expiration_date = self._get_expiration_date_from_config()
         if self.expiration_date <= datetime.datetime.utcnow().strftime('%Y-%m-%d'):
             print("----------------CLEAR existing_indicators_hash---------------------------")
