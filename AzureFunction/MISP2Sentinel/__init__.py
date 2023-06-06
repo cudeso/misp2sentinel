@@ -69,9 +69,10 @@ def _handle_tlp_level(parsed_event):
     if 'tlpLevel' not in parsed_event:
         parsed_event['tlpLevel'] = 'Red'
 
-
-def pmain():
-    tenants = json.loads(os.getenv('tenants'))
+def push_to_sentinel(tenant, id, secret):
+    config.graph_auth[TENANT] = tenant
+    config.graph_auth[CLIENT_ID] = id
+    config.graph_auth[CLIENT_SECRET] = secret
     if '-r' in sys.argv:
         print("Retrieve indicators from Sentinel")
         RequestManager.read_tiindicators()
@@ -80,22 +81,16 @@ def pmain():
     if '-d' in sys.argv:
         print("Delete indicators from Sentinel")
         # Delete an indicator
-        for key, value in tenants.items():
-            logging.info('Deleting from tenant {}'.format(key))
-            logging.info('GraphAuth client_id: {}'.format(config.graph_auth[CLIENT_ID]))
-            config.graph_auth[TENANT] = key
-            config.graph_auth[CLIENT_ID] = value['id']
-            config.graph_auth[CLIENT_SECRET] = value['secret']
-            request_manager = RequestManager(0)
-            access_token = request_manager._get_access_token(
-                config.graph_auth[TENANT],
-                config.graph_auth[CLIENT_ID],
-                config.graph_auth[CLIENT_SECRET])
-            headers = {"Authorization": f"Bearer {access_token}", 'user-agent': 'MISP/1.0'}
-            request_body = {'value': [sys.argv[2]]}
-            response = requests.post(GRAPH_BULK_DEL_URL, headers=headers, json=request_body).json()
-            print(json.dumps(response, indent=2))
-            sys.exit()
+        request_manager = RequestManager(0)
+        access_token = request_manager._get_access_token(
+            config.graph_auth[TENANT],
+            config.graph_auth[CLIENT_ID],
+            config.graph_auth[CLIENT_SECRET])
+        headers = {"Authorization": f"Bearer {access_token}", 'user-agent': 'MISP/1.0'}
+        request_body = {'value': [sys.argv[2]]}
+        response = requests.post(GRAPH_BULK_DEL_URL, headers=headers, json=request_body).json()
+        print(json.dumps(response, indent=2))
+        sys.exit()
 
     config.verbose_log = ('-v' in sys.argv)
     print('fetching & parsing data from misp...')
@@ -139,19 +134,17 @@ def pmain():
         parsed_events.append(parsed_event)
     del events
     total_indicators = sum([len(v['request_objects']) for v in parsed_events])
+
+    with RequestManager(total_indicators, tenant) as request_manager:
+        for request_body in _graph_post_request_body_generator(parsed_events):
+            if config.verbose_log:
+                print(f"request body: {request_body}")
+            request_manager.handle_indicator(request_body)
+
+def pmain():
+    tenants = json.loads(os.getenv('tenants'))
     for key, value in tenants.items():
-        logging.info('Writing to tenant {}'.format(key))
-        logging.info('GraphAuth client_id: {}'.format(config.graph_auth[CLIENT_ID]))
-        config.graph_auth[TENANT] = key
-        config.graph_auth[CLIENT_ID] = value['id']
-        config.graph_auth[CLIENT_SECRET] = value['secret']
-
-        with RequestManager(total_indicators) as request_manager:
-            for request_body in _graph_post_request_body_generator(parsed_events):
-                if config.verbose_log:
-                    print(f"request body: {request_body}")
-                request_manager.handle_indicator(request_body)
-
+        push_to_sentinel(key, value['id'], value['secret'])
 
 def main(mytimer: func.TimerRequest) -> None:
     utc_timestamp = datetime.datetime.utcnow().replace(
