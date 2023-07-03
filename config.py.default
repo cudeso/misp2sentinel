@@ -8,6 +8,8 @@ ms_auth = {
     'workspace_id': '<workspace id>'
 }
 
+ms_max_indicators_request = 100     # Throttle max: 100 indicators per request
+ms_max_requests_minute = 100        # Throttle max: 100 requests per minute
 ms_useragent = 'MISP-1.0'
 ms_target_product = 'Azure Sentinel'    # targetProduct
 ms_passiveonly = False                  # passiveOnly
@@ -22,6 +24,8 @@ misp_event_filters = {
 misp_key = '<misp api_key>'
 misp_domain = '<misp url>'
 misp_verifycert = False
+misp_event_limit_per_page = 50      # Limit memory use when querying MISP for STIX packages
+
 
 days_to_expire = 60
 network_ignore_direction = True

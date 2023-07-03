@@ -6,6 +6,7 @@ import json
 import copy
 import hashlib
 from constants import *
+import time
 
 
 class RequestManager:
@@ -19,8 +20,9 @@ class RequestManager:
 
     RJUST = 5
 
-    def __init__(self, total_indicators):
+    def __init__(self, total_indicators, logger):
         self.total_indicators = total_indicators
+        self.logger = logger
 
     def __enter__(self):
         try:
@@ -63,7 +65,7 @@ class RequestManager:
         return (datetime.datetime.utcnow() + datetime.timedelta(config.days_to_expire)).strftime('%Y-%m-%d')
 
     @staticmethod
-    def _get_access_token(tenant, client_id, client_secret,scope):
+    def _get_access_token(tenant, client_id, client_secret, scope):
         data = {
             CLIENT_ID: client_id,
             'scope': scope,
@@ -168,8 +170,7 @@ class RequestManager:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
 
-
-        self._post_to_graph()
+        '''self._post_to_graph()
         self._del_indicators_no_longer_exist()
 
         self.expiration_date_fd.seek(0)
@@ -180,7 +181,7 @@ class RequestManager:
         json.dump(self.existing_indicators_hash, self.existing_indicators_hash_fd, indent=2)
         self.existing_indicators_hash_fd.truncate()
 
-        self._print_summary()
+        self._print_summary()'''
 
     def _del_indicators_no_longer_exist(self):
         indicators = list(self.hash_of_indicators_to_delete.values())
@@ -218,14 +219,34 @@ class RequestManager:
         self.indicators_to_be_sent = []
         self._log_post(response)
 
-    def upload_indicators(self, request_body):
-        self._update_headers_if_expired()
-        workspace_id = config.ms_auth["workspace_id"]
-        request_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api- version=2022-07-01"
-        response = requests.post(request_url, headers=self.headers, json=request_body)
-        print(f"request body: {response.text}")
-        print("indicators sent")
+    def upload_indicators(self, parsed_indicators):
+        requests_number = 0
+        start_timestamp = self._get_timestamp()
+        while len(parsed_indicators) > 0:
+            if requests_number >= config.ms_max_requests_minute:
+                sleep_time = 102 - (self._get_timestamp() - start_timestamp)
+                if sleep_time > 0:
+                    self.logger.debug("Pausing upload for API request limit {}".format(sleep_time))
+                    time.sleep(sleep_time)
+                requests_number = 0
+                start_timestamp = self._get_timestamp()
 
+            self._update_headers_if_expired()
+            workspace_id = config.ms_auth["workspace_id"]
+            request_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api-version=2022-07-01"
+            request_body = {"sourcesystem": "MISP", "value": parsed_indicators[:config.ms_max_indicators_request]}
+            response = requests.post(request_url, headers=self.headers, json=request_body)
+            if response.status_code == 200:
+                if "errors" in response.json() and len(response.json()["errors"]) > 0:
+                    self.logger.error("Error when submitting indicators. {}".format(response.text))
+                    break
+                else:
+                    self.logger.info("Indicators sent - request number: {} / indicators: {}".format(requests_number, len(request_body["value"])))
+                    parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
+                    requests_number += 1
+            else:
+                self.logger.error("Error when submitting indicators. {}".format(response.text))
+                break
 
     def handle_indicator(self, indicator):
         self._update_headers_if_expired()
@@ -247,6 +268,7 @@ class RequestManager:
                 config.ms_auth[CLIENT_SECRET],
                 config.ms_auth[SCOPE])
             self.headers = {"Authorization": f"Bearer {access_token}", "user-agent": config.ms_useragent, "content-type": "application/json"}
+            print(access_token)
 
     @staticmethod
     def _clear_screen():
