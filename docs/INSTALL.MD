@@ -62,7 +62,7 @@ From above App Registration, 3 elements are required to store in Keyvault a valu
 The combined value that should be stored in the Keyvault, is as follows, where the variable names including the <> should be replaced by above 3 values.
 
 ```json
-{"<TENANT_ID_WITH_APP>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspace_id": "<WORKSPACE_ID>"} }
+{"<TENANT_ID_WITH_APP>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspaceid": "<WORKSPACE_ID>"} }
 ```
 
 The format of the key value makes it possible for the Azure Function to write Threat Intel data to multiple Sentinel instances. This is useful for instance if there is a testing environment, or for any other reason multiple Sentinel instances exist.
@@ -70,7 +70,7 @@ The format of the key value makes it possible for the Azure Function to write Th
 For pushing to multiple Sentinel instances, you would format the secret as such:
 
 ```json
-{"<TENANT_ID1>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspace_id": "<WORKSPACE_ID>"}, "<TENANT_IDn>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspace_id": "<WORKSPACE_ID>"}}
+{"<TENANT_ID1>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspaceid": "<WORKSPACE_ID>"}, "<TENANT_IDn>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspaceid": "<WORKSPACE_ID>"}}
 ```
 
 ### Add secrets to the Key Vault
