@@ -19,8 +19,8 @@ Full instructions in [INSTALL.md](../docs/INSTALL.MD)
 1. Create an App in the same Microsoft tenant where the Sentinel instance resides. The app requires the *ThreatIndicators.ReadWrite.OwnedBy* and *ThreatIndicators.Read.All* (Application type) permission.
 2. Create a Keyvault in your Azure subscription
 3. Add a new secret with the name "tenants" and the following value (its possible to add multiple Sentinel instances, it will loop all occurences):
-```
-{"<TENANT_ID_WITH_APP>": {"id": "<APP_ID>", "secret": "APP_SECRET"} }
+```json
+{"<TENANT_ID_WITH_APP>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspace_id": "<WORKSPACE_ID>"} }
 ```
 4. Add a new secret with the name "mispkey" and the value of your MISP API key
 5. Create an Azure Function in your Azure subscription
