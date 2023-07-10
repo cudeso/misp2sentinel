@@ -64,9 +64,12 @@ MISP_ACTIONABLE_TYPES = frozenset([
     *MISP_SPECIAL_CASE_TYPES
 ])
 
+
 CLIENT_ID = 'client_id'
 CLIENT_SECRET = 'client_secret'
 TENANT = 'tenant'
+SCOPE = 'scope'
+USER_AGENT = 'user-agent'
 ACCESS_TOKEN = 'access_token'
 GRAPH_TI_INDICATORS_URL = 'https://graph.microsoft.com/beta/security/tiindicators'
 GRAPH_BULK_POST_URL = f'{GRAPH_TI_INDICATORS_URL}/submitTiIndicators'
@@ -78,6 +81,14 @@ EXPIRATION_DATE_FILE_NAME = 'expiration_date.txt'
 INDICATOR_REQUEST_HASH = 'indicatorRequestHash'
 # TARGET_PRODUCT_BULK_SUPPORT = ['Azure Sentinel']
 # TARGET_PRODUCT_NON_BULK_SUPPORT = ['Microsoft Defender ATP']
+UPLOAD_INDICATOR_API_ACCEPTED_TYPES = ['indicator']
+UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES = list(MISP_ACTIONABLE_TYPES)
+TLP_MARKING_OBJECT_DEFINITION={ "tlp:white": "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9",
+                                    "tlp:clear": "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9",
+                                    "tlp:green": "marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da",
+                                    "tlp:amber": "marking-definition--f88d31f6-486f-44da-b317-01333bde0b82",
+                                    "tlp:amber+strict": "marking-definition--f88d31f6-486f-44da-b317-01333bde0b82",
+                                    "tlp:red": "marking-definition--5e57c739-391a-4eb3-b6be-7d15ca92d5ed" }
 
 EVENT_MAPPING = {
     'date': 'firstReportedDateTime',
@@ -110,41 +121,4 @@ OPTIONAL_GRAPH_METADATA = frozenset([
     "tags",
 ])
 
-GRAPH_OBSERVABLES = frozenset([
-    "emailEncoding",
-    "emailLanguage",
-    "emailRecipient",
-    "emailSenderAddress",
-    "emailSenderName",
-    "emailSourceDomain",
-    "emailSourceIPAddress",
-    "emailSubject",
-    "emailXMailer",
-    "fileCompileDateTime",
-    "fileCreationDateTime",
-    "fileHashType",
-    "fileHashValue",
-    "fileMutexName",
-    "fileName",
-    "filePacker",
-    "filePath",
-    "fileSize",
-    "fileType",
-    "domainName",
-    "networkIPv4",
-    "networkIPv6",
-    "networkPort",
-    "networkDestinationAsn",
-    "networkDestinationCidrBlock",
-    "networkDestinationIPv4",
-    "networkDestinationIPv6",
-    "networkDestinationPort",
-    "networkProtocol",
-    "networkSourceAsn",
-    "networkSourceCidrBlock",
-    "networkSourceIPv4",
-    "networkSourceIPv6",
-    "networkSourcePort",
-    "url",
-    "userAgent",
-])
+UPLOAD_INDICATOR_API_ACCEPTED_TYPES
