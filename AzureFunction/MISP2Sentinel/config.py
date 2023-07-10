@@ -7,6 +7,7 @@ ms_auth = {
     'client_id': '',
     'client_secret': '',
     'scope': 'https://management.azure.com/.default',
+    'graph_api': False,
     'workspace_id': ''
 }
 ms_max_indicators_request = 100     # Throttle max: 100 indicators per request
@@ -17,7 +18,7 @@ ms_passiveonly = False                  # passiveOnly
 ms_action = 'alert'                     # action
 
 misp_event_filters = {
-  "timestamp": "30d"
+    "timestamp": "1d"
 }
 
 misp_key = mispkey
