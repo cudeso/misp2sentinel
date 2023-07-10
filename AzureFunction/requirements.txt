@@ -6,10 +6,10 @@ awscli==1.16.20
 botocore==1.12.10
 certifi
 cffi
-chardet==3.0.4
+chardet
 charset-normalizer
 colorama
-cryptography==2.4.2
+cryptography
 Deprecated
 distlib
 filelock
@@ -21,8 +21,6 @@ pipenv
 platformdirs
 pyasn1
 pycparser
-pyOpenSSL==18.0.0
-PySocks==1.6.8
 pymisp
 pyrsistent
 python-dateutil
