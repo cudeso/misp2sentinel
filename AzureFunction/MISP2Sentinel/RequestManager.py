@@ -80,10 +80,11 @@ class RequestManager:
 
     @staticmethod
     def read_tiindicators():
-        access_token = self._get_access_token(
+        access_token = RequestManager._get_access_token(
                 config.ms_auth[TENANT],
                 config.ms_auth[CLIENT_ID],
-                config.ms_auth[CLIENT_SECRET])
+                config.ms_auth[CLIENT_SECRET],
+                config.ms_auth[SCOPE])
 
         res = requests.get(
             GRAPH_TI_INDICATORS_URL,
