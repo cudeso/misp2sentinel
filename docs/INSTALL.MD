@@ -16,6 +16,7 @@ The complete setup consists of several Azure components:
 - An Azure Subscription 
 - A Microsoft Sentinel Instance
 - API and URL of your MISP instance
+- [Threat Intelligence Solution installed](https://learn.microsoft.com/nb-no/azure/sentinel/connect-threat-intelligence-upload-api#enable-the-threat-intelligence-upload-indicators-api-data-connector-in-microsoft-sentinel) on the Microsoft Sentinel workspace
 
 ## App Registration
 
@@ -25,21 +26,22 @@ This is how to create and configure the app registration:
 2. Go to the service App Registrations
 3. Make a new registration
 4. Give the new app a descriptive name, for instance: *misp2sentinel*. Other settings can be left to default values.
-5. Click ofter creating the app registration in the overview page under CLient credentials on *add a certificate or secret*
+5. Click ofter creating the app registration in the overview page under Client credentials on *add a certificate or secret*
 6. Click under Client secrets on *New client secret*
 7. Give a description, for instance *M2S Azure Function* and leave the recommeded expiry value
 8. Copy the value of the new Client Secret, which need to be stored in an Azure Key Vault
+9. [Add the created app registration to the Microsoft Sentinel Contributor role](https://learn.microsoft.com/nb-no/azure/sentinel/connect-threat-intelligence-upload-api#assign-a-role-to-the-application) on the relevant workspaces.
 
 ### Making the App Registration multi-tenant
 
 To make the app registration work in the other tenants you will need to grant admin consent to the enterprise app in each tenant. Please note that this will require you to add a redirect URL in the app registrations configuration, like `https://portal.azure.com`.
 
-In each tenant you wish to push data to, navigate to the following URL and grant admin consent:
- 
-`https://login.microsoftonline.com/common/adminconsent?client_id=<APP_ID>&sso_reload=true` 
+1. In each tenant you wish to push data to, navigate to the following URL and grant admin consent:
+   `https://login.microsoftonline.com/common/adminconsent?client_id=<APP_ID>&sso_reload=true` 
+2. Add the enterprise application to the Micorosft Sentinel Contributor role on each workspace you wish to push data to.
 
 
-> **NOTE**: It might be a good idea to set the enterprise application in the native Azure AD tenant to not allow users to sign in. The app reg only requires application permissions and no delegated interaction.
+> **NOTE**: It might be a good idea to set the enterprise application in the native Azure AD tenant to not allow users to sign in.
 
 ## Keyvault
 
@@ -72,6 +74,8 @@ For pushing to multiple Sentinel instances, you would format the secret as such:
 ```json
 {"<TENANT_ID1>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspaceid": "<WORKSPACE_ID>"}, "<TENANT_IDn>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspaceid": "<WORKSPACE_ID>"}}
 ```
+
+> **NOTE**: The solution currently does not support pushing to multiple workspaces within the same tenant, as the tenant id is used as the key in the dictionary.
 
 ### Add secrets to the Key Vault
 

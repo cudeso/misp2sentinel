@@ -16,7 +16,7 @@ Full instructions in [INSTALL.md](../docs/INSTALL.MD)
 
 ### Summary
 
-1. Create an App in the same Microsoft tenant where the Sentinel instance resides. The app requires the *ThreatIndicators.ReadWrite.OwnedBy* and *ThreatIndicators.Read.All* (Application type) permission.
+1. Create an App in the same Microsoft tenant where the Sentinel instance resides. The app requires Microsoft Sentinel Contributor assigned on the workspace.
 2. Create a Keyvault in your Azure subscription
 3. Add a new secret with the name "tenants" and the following value (its possible to add multiple Sentinel instances, it will loop all occurences):
 ```json
