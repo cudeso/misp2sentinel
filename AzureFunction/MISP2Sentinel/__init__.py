@@ -21,7 +21,7 @@ if config.misp_verifycert is False:
 def _get_misp_events_stix():
     misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
     result_set = []
-    logging.debug("Query MISP for events and return them in stix2 format.")
+    logging.info("Query MISP for events and return them in stix2 format.")
     remaining_misp_pages = True
     misp_page = 0
     empty_event = {"info": "Unknown MISP event", "uuid": "", "tags": [], "tlp": False}
@@ -33,9 +33,10 @@ def _get_misp_events_stix():
         try:
             result = misp.search(controller='events', return_format='stix2', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
             if result.get("objects", False):
-                logging.debug("Received MISP events page {}".format(misp_page))
+                logging.info("Received MISP events page {}".format(misp_page))
                 stix2_objects = result.get("objects")
-
+                '''print(stix2_objects)'''
+                logging.info("Received {} objects".format(len(stix2_objects)))
                 for element in stix2_objects:       # Extract event information
                     if element.get("type", False) == "report":
                         misp_tags = []
@@ -86,6 +87,12 @@ def _get_misp_events_stix():
                             element["external_references"].append(misp_event_reference)
                         else:
                             element["external_references"] = [misp_event_reference]
+
+                        # Override valid until date
+                        if element.get("valid_until", False):
+                            element["valid_until"] = (datetime.datetime.utcnow() + datetime.timedelta(days=config.days_to_expire)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                        else: 
+                            element["valid_until"] = (datetime.datetime.utcnow() + datetime.timedelta(days=config.days_to_expire)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
                         misp_indicator_ids.append(element.get("id"))
                         result_set.append(element)
