@@ -241,8 +241,8 @@ class RequestManager:
                     self.logger.error("Error when submitting indicators. {}".format(response.text))
                     break
                 else:
-                    self.logger.info("Indicators sent - request number: {} / indicators: {}".format(requests_number, len(request_body["value"])))
                     parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
+                    self.logger.info("Indicators sent - request number: {} / indicators: {} / remaining: {}".format(requests_number, len(request_body["value"]), len(parsed_indicators)))
                     requests_number += 1
             else:
                 self.logger.error("Error when submitting indicators. {}".format(response.text))
