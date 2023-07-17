@@ -83,12 +83,12 @@ INDICATOR_REQUEST_HASH = 'indicatorRequestHash'
 # TARGET_PRODUCT_NON_BULK_SUPPORT = ['Microsoft Defender ATP']
 UPLOAD_INDICATOR_API_ACCEPTED_TYPES = ['indicator']
 UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES = list(MISP_ACTIONABLE_TYPES)
-TLP_MARKING_OBJECT_DEFINITION={ "tlp:white": "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9",
+TLP_MARKING_OBJECT_DEFINITION={"tlp:white": "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9",
                                     "tlp:clear": "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9",
                                     "tlp:green": "marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da",
                                     "tlp:amber": "marking-definition--f88d31f6-486f-44da-b317-01333bde0b82",
                                     "tlp:amber+strict": "marking-definition--f88d31f6-486f-44da-b317-01333bde0b82",
-                                    "tlp:red": "marking-definition--5e57c739-391a-4eb3-b6be-7d15ca92d5ed" }
+                                    "tlp:red": "marking-definition--5e57c739-391a-4eb3-b6be-7d15ca92d5ed"}
 
 EVENT_MAPPING = {
     'date': 'firstReportedDateTime',
@@ -121,4 +121,6 @@ OPTIONAL_GRAPH_METADATA = frozenset([
     "tags",
 ])
 
-UPLOAD_INDICATOR_API_ACCEPTED_TYPES
+MISP_TAGS_IGNORE = ["Threat-Report", "misp:tool=\"MISP-STIX-Converter\"", "misp:to_ids=\"True\"", "misp:to_ids=\"False\"", "misp:category=", "misp:name=", "misp:meta-category=", "misp:category="]
+MISP_CONFIDENCE = {"prefix": "misp:confidence-level", "matches": {"completely-confident": 100, "confidence-cannot-be-evalued": 50, "fairly-confident": 50, "rarely-confident": 25, "unconfident": 0, "usually-confident": 75}}
+SENTINEL_DEFAULT_THREATTYPE = "WatchList"

@@ -3,7 +3,7 @@ import config
 from collections import defaultdict
 import datetime
 from RequestManager import RequestManager
-from RequestObject import RequestObject
+from RequestObject import RequestObject, RequestObject_Event, RequestObject_Indicator
 from constants import *
 import sys
 from functools import reduce
@@ -54,7 +54,7 @@ def _graph_post_request_body_generator(parsed_events):
 
 def _handle_timestamp(parsed_event):
     parsed_event['lastReportedDateTime'] = str(
-        datetime.datetime.fromtimestamp(int(parsed_event['lastReportedDateTime'])))
+        datetime.fromtimestamp(int(parsed_event['lastReportedDateTime'])))
 
 
 def _handle_diamond_model(parsed_event):
@@ -78,144 +78,68 @@ def _get_misp_events_stix():
     result_set = []
     logger.debug("Query MISP for events and return them in stix2 format.")
     remaining_misp_pages = True
-    misp_page = 0
-    empty_event = {"info": "Unknown MISP event", "uuid": "", "tags": [], "tlp": False}
-    misp_tags_ignore = ["Threat-Report", "misp:tool=\"MISP-STIX-Converter\""]
+    misp_page = 1
     misp_indicator_ids = []
 
     while remaining_misp_pages:
-        misp_reports_indicator = {}
         try:
-            result = misp.search(controller='events', return_format='stix2', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
+            # Avoid adding twice the "limit", as this would break pagination requests
+            if "limit" in config.misp_event_filters:
+                result = misp.search(controller='events', return_format='stix2', **config.misp_event_filters)
+            else:
+                result = misp.search(controller='events', return_format='stix2', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
+
             if result.get("objects", False):
                 logger.debug("Received MISP events page {}".format(misp_page))
                 stix2_objects = result.get("objects")
                 #print(stix2_objects)
 
+                misp_event = False
                 for element in stix2_objects:       # Extract event information
                     if element.get("type", False) == "report":
-                        misp_tags = []
-                        misp_tag_tlp = ""
-                        if element.get("labels", False):
-                            for label in element.get("labels"):
-                                if "tlp:" in label.lower() and label.lower() in TLP_MARKING_OBJECT_DEFINITION:
-                                    misp_tag_tlp = label.lower()
-                                # avoid double TLPs
-                                if label not in misp_tags_ignore and label not in misp_tags:
-                                    misp_tags.append(label)
-                        if element.get("object_refs", False):
-                            for object_ref in element.get("object_refs"):
-                                if "indicator--" in object_ref:
-                                    event_info = element.get("name", "").strip()
-                                    event_uuid = element.get("id", "report--000").strip().split("report--")[1]
-                                    misp_reports_indicator[object_ref] = {"info": event_info, "uuid": event_uuid, "tags": misp_tags, "tlp": misp_tag_tlp}
+                        misp_event = RequestObject_Event(element, logger)
 
-                for element in stix2_objects:
-                    if element.get("type", False) in UPLOAD_INDICATOR_API_ACCEPTED_TYPES and \
-                            element.get("id") not in misp_indicator_ids:
-
-                        event_info = misp_reports_indicator.get(element["id"], empty_event)["info"]
-                        event_uuid = misp_reports_indicator.get(element["id"], empty_event)["uuid"]
-                        event_tags = misp_reports_indicator.get(element["id"], empty_event)["tags"]
-                        event_tlp = misp_reports_indicator.get(element["id"], empty_event)["tlp"]
-
-                        labels = []
-                        confidence = config.default_confidence
-                        for item in element.get("labels", []):
-                            if "misp:type=" in item.lower():
-                                misp_type = item.split("=")[1].strip('"').lower()
-                            if "misp:to_ids=" in item.lower():
-                                continue
-                            if "misp:confidence-level=" in item.lower():
-                                confidence_tag = item.lower().split("misp:confidence-level=")
-                                if "completely-confident" in confidence_tag:
-                                    confidence = 100
-                                elif "confidence-cannot-be-evalued" in confidence_tag:
-                                    confidence = 50
-                                elif "fairly-confident" in confidence_tag:
-                                    confidence = 50
-                                elif "rarely-confident" in confidence_tag:
-                                    confidence = 25
-                                elif "unconfident" in confidence_tag:
-                                    confidence = 0
-                                elif "usually-confident" in confidence_tag:
-                                    confidence = 75
-
-                            labels.append(item)
-                        for tag in event_tags:
-                            if tag not in labels:
-                                labels.append(tag)
-                        if misp_type not in UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES:
-                            logger.error("Skipping type {}".format(misp_type))
-                            break
-                        element["labels"] = labels
-
-                        if event_tlp:
-                            if element.get("object_marking_refs"):
-                                element["object_marking_refs"].append(TLP_MARKING_OBJECT_DEFINITION[event_tlp])
+                # If there's no event in the returned STIX package then something went wrong
+                if not misp_event:
+                    logger.debug("No MISP event in the returned STIX package. Skipping indicators.")
+                else:
+                    for element in stix2_objects:
+                        if element.get("type", False) in UPLOAD_INDICATOR_API_ACCEPTED_TYPES and \
+                                element.get("id") not in misp_indicator_ids:
+                            misp_indicator = RequestObject_Indicator(element, misp_event, logger)
+                            if not misp_indicator.indicator:
+                                logger.debug("Unable to process indicator {}".format(element["id"]))
                             else:
-                                element["object_marking_refs"] = [TLP_MARKING_OBJECT_DEFINITION[event_tlp]]
-                        '''for tag in event_tags:
-                            if tag not in element.get("labels", []):
-                                # document days to expire; per type??> no: needs to be with to_ids in TIP'''
+                                element["labels"] = misp_indicator.labels
+                                element["description"] = misp_indicator.description
+                                element["confidence"] = misp_indicator.confidence
+                                element["object_marking_refs"] = misp_indicator.object_marking_refs
+                                element["name"] = misp_indicator.name
+                                element["indicator_types"] = misp_indicator.indicator_types
+                                element["kill_chain_phases"] = misp_indicator.kill_chain_phases
+                                element["external_references"] = misp_indicator.external_references
+                                element["valid_until"] = misp_indicator.valid_until
+                                element["valid_from"] = misp_indicator.valid_from
 
-                        element["name"] = "{} {}".format(event_info, element.get("name", "")).strip()
+                                if misp_indicator.valid_until:
+                                    date_object = datetime.fromisoformat(misp_indicator.valid_until[:-1])
+                                    if date_object > datetime.now():
+                                        if config.verbose_log:
+                                            logger.debug("Add {} to list of indicators to upload".format(element.get("pattern")))
+                                        misp_indicator_ids.append(element.get("id"))
+                                        result_set.append(element)
+                                    else:
+                                        logger.error("Skipping outdated indicator {}".format(element.get("id")))
+                                else:
+                                    logger.error("Skipping indicator because valid_until was not set by MISP/MISP2Sentinel {}".format(element.get("id")))
 
-                        # Check in tags for sentinel threat type
-                        if element.get("indicator_types", False):
-                            element["indicator_types"] = ["MISP"]
-
-                        # Uses either MISP confidence level; or the default one
-                        if not element.get("confidence", False):
-                            element["confidence"] = confidence
-
-                        # Fix kill_chain_phases https://github.com/MISP/misp-stix/issues/47
-                        phases = []
-                        for phase in element.get("kill_chain_phases", []):
-                            if phase.get("phase_name", False) == "network":
-                                phases.append({"kill_chain_name": "misp-category", "phase_name": "Network activity"})
-                            else:
-                                phases.append(phase)
-                        element["kill_chain_phases"] = phases
-
-                        # Link to MISP event
-                        misp_event_reference = {
-                            "source_name": "MISP",
-                            "description": "MISP Event: {}".format(event_info),
-                            "external_id": event_uuid,
-                            "url": "{}/events/view/{}".format(config.misp_domain, event_uuid)
-                        }
-                        if element.get("external_references", False):
-                            element["external_references"].append(misp_event_reference)
-                        else:
-                            element["external_references"] = [misp_event_reference]
-
-                        date_object = False
-                        # Set the valid_until if not set by MISP
-                        if not element.get("valid_until", False):
-                            if config.days_to_expire_start.lower().strip() == "current_date":
-                                date_object = datetime.now() + timedelta(days=config.days_to_expire)
-                            elif config.days_to_expire_start.lower().strip() == "valid_from":
-                                date_object = datetime.fromisoformat(element.get("valid_from")[:-1]) + timedelta(days=config.days_to_expire)
-                            if date_object:
-                                element["valid_until"] = date_object.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-                        if element.get("valid_until", False):
-                            date_object = datetime.fromisoformat(element.get("valid_until")[:-1])
-                            if date_object > datetime.now():
-                                misp_indicator_ids.append(element.get("id"))
-                                result_set.append(element)
-                            else:
-                                logger.error("Skipping outdated indicator {}".format(element.get("id")))
-                        else:
-                            logger.error("Skipping indicator because valid_until was not set by MISP/MISP2Sentinel {}".format(element.get("id")))
                 logger.info("Processed {} indicators.".format(len(result_set)))
 
                 misp_page += 1
-            
+
         except exceptions.MISPServerError:
             remaining_misp_pages = False
-            print("\n\nYou can ignore the 'An Internal Error Has Occurred' message thrown by MISP.")
+            print("\n\nYou can ignore 'An Internal Error Has Occurred' message thrown by MISP. ")
             print("The MISP STIX export does not return the number of page results. We query for results until we get an error.")
             print("Also see: https://github.com/MISP/misp-stix/issues/44")
             logger.info("Finished receiving MISP events.")
@@ -247,7 +171,23 @@ def _init_configuration():
         sys.exit("Exiting. No MISP authentication configuration setting found (misp_domain, misp_key and misp_verifycert).")
     if not hasattr(config, "ms_auth"):
         sys.exit("Exiting. No Microsoft authentication configuration setting found (ms_auth).")
+    if not hasattr(config, "ms_useragent"):
+        config.ms_useragent = "MISP-1.0"
+    if not hasattr(config, "default_confidence"):
+        config.default_confidence = 50
+    if not hasattr(config, "log_file"):
+        config.log_file = "/tmp/misp2sentinel.log"
+    if not hasattr(config, "ms_passiveonly"):
+        config.ms_passiveonly = False
+    if not hasattr(config, "ms_target_product"):
+        config.ms_target_product = "Azure Sentinel"
+    if not hasattr(config, "ms_action"):
+        config.ms_action = "alert"
+
     return use_old_config
+
+
+global _build_logger
 
 
 def _build_logger():
@@ -285,7 +225,7 @@ def main():
                 if 'sentinel-threattype' in tag['name']:    # Can be overriden on attribute level
                     parsed_event['threatType'] = tag['name'].split(':')[1]
                     continue
-                if config.misp_ignore_localtags:
+                if config.ignore_localtags:
                     if tag["local"] != 1:
                         tags.append(tag['name'].strip())
             parsed_event['tags'] = tags
@@ -314,19 +254,22 @@ def main():
     else:
         logger.info("Using Microsoft Upload Indicator API")
         parsed_indicators, total_indicators = _get_misp_events_stix()
-        logger.info("Found {} indicators in MISP".format(total_indicators))
+        logger.info("Received {} indicators in MISP".format(total_indicators))
 
     with RequestManager(total_indicators, logger) as request_manager:
         if config.ms_auth["graph_api"]:
             for request_body in _graph_post_request_body_generator(parsed_events):
                 if config.verbose_log:
-                    print(f"request body: {request_body}")
+                    logger.debug("request body: {}".format(request_body))
                 request_manager.handle_indicator(request_body)
         else:
+            logger.info("Start uploading indicators")
             request_manager.upload_indicators(parsed_indicators)
-            json_formatted_str = json.dumps(parsed_indicators, indent=4)
-            with open("parsed_indicators.txt", "w") as fp:
-                fp.write(json_formatted_str)
+            logger.info("Finished uploading indicators")
+            if config.write_parsed_indicators:
+                json_formatted_str = json.dumps(parsed_indicators, indent=4)
+                with open("parsed_indicators.txt", "w") as fp:
+                    fp.write(json_formatted_str)
 
 
 if __name__ == '__main__':

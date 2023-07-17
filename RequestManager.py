@@ -38,7 +38,6 @@ class RequestManager:
             self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME, 'w')
             self.expiration_date = self._get_expiration_date_from_config()
         if self.expiration_date <= datetime.datetime.utcnow().strftime('%Y-%m-%d'):
-            print("----------------CLEAR existing_indicators_hash---------------------------")
             self.existing_indicators_hash = {}
             self.expiration_date = self._get_expiration_date_from_config()
         self.hash_of_indicators_to_delete = copy.deepcopy(self.existing_indicators_hash)
@@ -90,7 +89,7 @@ class RequestManager:
             headers={"Authorization": f"Bearer {access_token}"}
             ).json()
         if config.verbose_log:
-            print(json.dumps(res, indent=2))
+            self.logger.info(res, indent=2)
 
     @staticmethod
     def _get_request_hash(request):
@@ -108,7 +107,7 @@ class RequestManager:
         # self._clear_screen()
         cur_batch_success_count = cur_batch_error_count = 0
         if config.verbose_log:
-            print(f"response: {response}")
+            self.logger.debug("Response: {}".format(response))
 
         if 'error' in response:
             self.error_count += 1
@@ -145,24 +144,8 @@ class RequestManager:
                     with open(f'{LOG_DIRECTORY_NAME}/{log_file_name}', 'w') as file:
                         json.dump(response, file)
 
-        if config.ms_auth["graph_api"]:
-            print('sending security indicators to Microsoft Graph Security\n')
-            print(f'{self.total_indicators} indicators are parsed from misp events. Only those that do not exist in Microsoft Graph Security will be sent.\n')
-        else:
-            print(f'{self.total_indicators} indicators are parsed from misp events. \n')
-        # print(f"current batch indicators sent:  {str(cur_batch_success_count + cur_batch_error_count).rjust(self.RJUST)}")
-        # print(f"current batch response success: {str(cur_batch_success_count).rjust(self.RJUST)}")
-        # print(f"current batch response error:   {str(cur_batch_error_count).rjust(self.RJUST)}\n")
-        # print(f"total indicators sent:          {str(self._get_total_indicators_sent()).rjust(self.RJUST)}")
-        # print(f"total response success:         {str(self.success_count).rjust(self.RJUST)}")
-        # print(f"total response error:           {str(self.error_count).rjust(self.RJUST)}\n")
-        cur_batch_took = self._get_timestamp() - self.last_batch_done_timestamp
-        self.last_batch_done_timestamp = self._get_timestamp()
-        print(f'current batch took:   {round(cur_batch_took, 2):{6}} seconds')
-        # avg_speed = self._get_total_indicators_sent() / (self.last_batch_done_timestamp - self.start_time)
-        # print(f'average speed so far: {round(avg_speed, 2):{6}} indicators per second')
-        # time_left = (self.total_indicators - self._get_total_indicators_sent()) / avg_speed
-        # print(f'estimated time left:  {round(time_left, 2):{6}} seconds')
+        self.logger.info("Sending security indicators to Microsoft Graph Security")
+        self.logger.info("{} indicators are parsed from MISP events. Only those that do not exist in Microsoft Graph Security will be sent.".format(self.total_indicators))
 
     @staticmethod
     def _get_datetime_now():
@@ -170,18 +153,19 @@ class RequestManager:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
 
-        '''self._post_to_graph()
-        self._del_indicators_no_longer_exist()
+        if config.ms_auth["graph_api"]:
+            self._post_to_graph()
+            self._del_indicators_no_longer_exist()
 
-        self.expiration_date_fd.seek(0)
-        self.expiration_date_fd.write(self.expiration_date)
-        self.expiration_date_fd.truncate()
+            self.expiration_date_fd.seek(0)
+            self.expiration_date_fd.write(self.expiration_date)
+            self.expiration_date_fd.truncate()
 
-        self.existing_indicators_hash_fd.seek(0)
-        json.dump(self.existing_indicators_hash, self.existing_indicators_hash_fd, indent=2)
-        self.existing_indicators_hash_fd.truncate()
+            self.existing_indicators_hash_fd.seek(0)
+            json.dump(self.existing_indicators_hash, self.existing_indicators_hash_fd, indent=2)
+            self.existing_indicators_hash_fd.truncate()
 
-        self._print_summary()'''
+            self._print_summary()
 
     def _del_indicators_no_longer_exist(self):
         indicators = list(self.hash_of_indicators_to_delete.values())
@@ -189,7 +173,7 @@ class RequestManager:
         for i in range(0, len(indicators), 100):
             request_body = {'value': indicators[i: i+100]}
             if config.verbose_log:
-                print(request_body)
+                self.logger.debug(request_body)
             response = requests.post(GRAPH_BULK_DEL_URL, headers=self.headers, json=request_body).json()
             file_name = f"del_{self._get_datetime_now()}.json"
             log_file_name = file_name.replace(':', '')
@@ -199,19 +183,11 @@ class RequestManager:
             self.existing_indicators_hash.pop(hash_of_indicator_to_delete, None)
 
     def _print_summary(self):
-        # self._clear_screen()
-        print('script finished running\n')
-        print(f"total indicators sent:    {str(self._get_total_indicators_sent()).rjust(self.RJUST)}")
-        print(f"total response success:   {str(self.success_count).rjust(self.RJUST)}")
-        print(f"total response error:     {str(self.error_count).rjust(self.RJUST)}")
-        print(f"total indicators deleted: {str(self.del_count).rjust(self.RJUST)}")
-
-    # def _post_one_to_graph(self):
-    #     for indicator in self.indicators_to_be_sent:
-    #         request_body = indicator
-    #         response = requests.post(GRAPH_TI_INDICATORS_URL, headers=self.headers, json=request_body).json()
-    #     self.indicators_to_be_sent = []
-    #     self._log_post(response)
+        self.logger.info("Script finished running")
+        self.logger.info("Total indicators sent:    {}".format(str(self._get_total_indicators_sent()).rjust(self.RJUST)))
+        self.logger.info("Total response success:   {}".format(str(self.success_count).rjust(self.RJUST)))
+        self.logger.info("Total response error:     {}".format(str(self.error_count).rjust(self.RJUST)))
+        self.logger.info("Total indicators deleted: {}".format(str(self.del_count).rjust(self.RJUST)))
 
     def _post_to_graph(self):
         request_body = {'value': self.indicators_to_be_sent}
@@ -224,7 +200,7 @@ class RequestManager:
         start_timestamp = self._get_timestamp()
         while len(parsed_indicators) > 0:
             if requests_number >= config.ms_max_requests_minute:
-                sleep_time = 102 - (self._get_timestamp() - start_timestamp)
+                sleep_time = (config.ms_max_requests_minute + 1) - (self._get_timestamp() - start_timestamp)
                 if sleep_time > 0:
                     self.logger.debug("Pausing upload for API request limit {}".format(sleep_time))
                     time.sleep(sleep_time)
@@ -233,7 +209,8 @@ class RequestManager:
 
             self._update_headers_if_expired()
             workspace_id = config.ms_auth["workspace_id"]
-            request_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api-version=2022-07-01"
+            api_version = config.ms_api_version
+            request_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api-version={api_version}"
             request_body = {"sourcesystem": "MISP", "value": parsed_indicators[:config.ms_max_indicators_request]}
             response = requests.post(request_url, headers=self.headers, json=request_body)
             if response.status_code == 200:
@@ -257,7 +234,7 @@ class RequestManager:
         if indicator_hash not in self.existing_indicators_hash:
             self.indicators_to_be_sent.append(indicator)
         if len(self.indicators_to_be_sent) >= 100:
-            print(f"number of indicators sent: {self.success_count+self.error_count}")
+            self.logger.info("Number of indicators sent: {}".format(self.success_count+self.error_count))
             self._post_to_graph()
 
     def _update_headers_if_expired(self):
@@ -268,7 +245,6 @@ class RequestManager:
                 config.ms_auth[CLIENT_SECRET],
                 config.ms_auth[SCOPE])
             self.headers = {"Authorization": f"Bearer {access_token}", "user-agent": config.ms_useragent, "content-type": "application/json"}
-            print(access_token)
 
     @staticmethod
     def _clear_screen():

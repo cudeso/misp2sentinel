@@ -1,35 +1,59 @@
+####
+# Microsoft section
+#
 ms_auth = {
-    'tenant': '<tenant id>',
-    'client_id': '<client id>',
-    'client_secret': '<client secret>',
-    #'scope': 'https://graph.microsoft.com/.default',
-    'scope': 'https://management.azure.com/.default',
-    'graph_api': False,
-    'workspace_id': '<workspace id>'
+    'tenant': '<tenant>>',
+    'client_id': '<client_id>',
+    'client_secret': '<client_secret>',
+    'graph_api': False,                                 # Set to False to use Upload Indicators API   
+    #'scope': 'https://graph.microsoft.com/.default',   # Scope for GraphAPI
+    'scope': 'https://management.azure.com/.default',   # Scope for Upload Indicators API
+    'workspace_id': '<workspace_id>'
 }
 
+ms_passiveonly = False              # Graph API only
+ms_action = 'alert'                 # Graph API only
+
+ms_api_version = "2022-07-01"       # Upload Indicators API version
 ms_max_indicators_request = 100     # Throttle max: 100 indicators per request
 ms_max_requests_minute = 100        # Throttle max: 100 requests per minute
-ms_useragent = 'MISP-1.0'
-ms_target_product = 'Azure Sentinel'    # targetProduct
-ms_passiveonly = False                  # passiveOnly
-ms_action = 'alert'                     # action
+
+
+####
+# MISP section
+misp_key = '<misp api_key>'
+misp_domain = '<misp url>'
+misp_verifycert = False
 
 misp_event_filters = {
     "published": 1,
     "tags": [ "workflow:state=\"complete\""],
     "to_ids": 1,
+    "enforceWarninglist": True,
+    "includeEventTags": True,    
 }
 
-misp_key = '<misp api_key>'
-misp_domain = '<misp url>'
-misp_verifycert = False
-misp_event_limit_per_page = 50      # Limit memory use when querying MISP for STIX packages
+misp_event_limit_per_page = 50      # Upload Indicators API: Limit memory use when querying MISP for STIX packages
 
+####
+# Integration settings
 
-days_to_expire = 60
-network_ignore_direction = True
-verbose_log = True
-write_post_json = False
-misp_ignore_localtags = True
-default_confidence = 50             # defaultConfidenceLevel
+ignore_localtags = True             # Graph API only
+network_ignore_direction = True     # Graph API only
+
+default_confidence = 50             # Sentinel default confidence level of indicator
+
+days_to_expire = 50                 # Graph API and Upload Indicators
+days_to_expire_start = "current_date" # Upload Indicators API only. Start counting from "valid_from" | "current_date" ; 
+days_to_expire_mapping = {          # Upload indicators API only. Mapping for expiration of specific indicator types
+                    "ipv4-addr": 150,
+                    "ipv6-addr": 150,
+                    "domain-name": 300,
+                    "url": 400,
+                }
+
+log_file = "/tmp/misp2sentinel.log"
+write_post_json = False             # Graph API only
+verbose_log = False
+write_parsed_indicators = False      # Upload Indicators only
+
