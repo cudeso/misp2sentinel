@@ -228,6 +228,8 @@ Response (if any):
 {"name":"An Internal Error Has Occurred.","message":"An Internal Error Has Occurred.","url":"\/events\/restSearch"}
 ```
 
+Also see issue [https://github.com/MISP/misp-stix/issues/44](https://github.com/MISP/misp-stix/issues/44).
+
 ### Attack patterns
 
 The attack patterns ([TTPType](https://stixproject.github.io/data-model/1.2/ttp/TTPType/) and others) are *not implemented by Microsoft*. This also means that information galaxies/clusters (such as those from MITRE) that you add to a threat event or attribute or not translated to Sentinel. Once there is full STIX support from Microsoft these attack patterns can also be imported.
