@@ -18,6 +18,7 @@
     - [Mappings](#mappings)
   - [Cron job](#cron-job)
     - [MISP configuration](#misp-configuration)
+  - [Configuration mapping](#configuration-mapping)
   - [Additional documentation](#additional-documentation)
 
 # MISP to Microsoft Sentinel integration
@@ -329,6 +330,21 @@ To make the most of the Sentinel integration you have to enable these MISP taxon
 - [diamond-model](https://www.misp-project.org/taxonomies.html#_diamond_model) *(currently only used with Graph API)*
 
 These taxonomies are used to provide additional **context** to the synchronised indicators and are strictly not necessary for the well-functioning of the integration. But they provide useful information for Sentinel users to understand what the threat is about and which follow-up actions need to be taken. 
+
+## Configuration mapping
+
+Overview of old (before adding Upload Indicators API) and new configuration settings. Also see function `_init_configuration`.
+
+| Old | New |
+|-----|-----|
+| graph_auth  | ms_auth  |
+| targetProduct  | ms_target_product  |
+| action | ms_action |
+| passiveOnly | ms_passiveonly |
+| defaultConfidenceLevel | default_confidence |
+
+
+
 
 
 ## Additional documentation
