@@ -3,7 +3,7 @@ from pymisp import ExpandedPyMISP
 import MISP2Sentinel.config as config
 from collections import defaultdict
 from MISP2Sentinel.RequestManager import RequestManager
-from MISP2Sentinel.RequestObject import RequestObject
+from MISP2Sentinel.RequestObject import RequestObject, RequestObject_Event, RequestObject_Indicator
 from MISP2Sentinel.constants import *
 import sys
 from functools import reduce
@@ -23,85 +23,69 @@ def _get_misp_events_stix():
     result_set = []
     logging.info("Query MISP for events and return them in stix2 format.")
     remaining_misp_pages = True
-    misp_page = 0
-    empty_event = {"info": "Unknown MISP event", "uuid": "", "tags": [], "tlp": False}
-    misp_tags_ignore = ["Threat-Report", "misp:tool=\"MISP-STIX-Converter\""]
+    misp_page = 1
     misp_indicator_ids = []
 
     while remaining_misp_pages:
-        misp_reports_indicator = {}
         try:
-            result = misp.search(controller='events', return_format='stix2', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
+            # Avoid adding twice the "limit", as this would break pagination requests
+            if "limit" in config.misp_event_filters:
+                result = misp.search(controller='events', return_format='stix2', **config.misp_event_filters)
+            else:
+                result = misp.search(controller='events', return_format='stix2', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
+
             if result.get("objects", False):
                 logging.info("Received MISP events page {}".format(misp_page))
                 stix2_objects = result.get("objects")
-                '''print(stix2_objects)'''
+                #print(stix2_objects)
+
+                misp_event = False
                 logging.info("Received {} objects".format(len(stix2_objects)))
                 for element in stix2_objects:       # Extract event information
                     if element.get("type", False) == "report":
-                        misp_tags = []
-                        misp_tag_tlp = ""
-                        if element.get("labels", False):
-                            for label in element.get("labels"):
-                                if "tlp:" in label.lower() and label.lower() in TLP_MARKING_OBJECT_DEFINITION:
-                                    misp_tag_tlp = label.lower()
-                                if label not in misp_tags_ignore and label not in misp_tags:
-                                    misp_tags.append(label)
-                        if element.get("object_refs", False):
-                            for object_ref in element.get("object_refs"):
-                                if "indicator--" in object_ref:
-                                    event_info = element.get("name", "").strip()
-                                    event_uuid = element.get("id", "report--000").strip().split("report--")[1]
-                                    misp_reports_indicator[object_ref] = {"info": event_info, "uuid": event_uuid, "tags": misp_tags, "tlp": misp_tag_tlp}
+                        misp_event = RequestObject_Event(element)
 
-                for element in stix2_objects:
-                    if element.get("type", False) in UPLOAD_INDICATOR_API_ACCEPTED_TYPES and element.get("id") not in misp_indicator_ids:
-                        event_info = misp_reports_indicator.get(element["id"], empty_event)["info"]
-                        event_uuid = misp_reports_indicator.get(element["id"], empty_event)["uuid"]
-                        event_tags = misp_reports_indicator.get(element["id"], empty_event)["tags"]
-                        event_tlp = misp_reports_indicator.get(element["id"], empty_event)["tlp"]
-
-                        if event_tlp:
-                            if element.get("object_marking_refs"):
-                                element["object_marking_refs"].append(TLP_MARKING_OBJECT_DEFINITION[event_tlp])
+                # If there's no event in the returned STIX package then something went wrong
+                if not misp_event:
+                    logging.debug("No MISP event in the returned STIX package. Skipping indicators.")
+                else:
+                    for element in stix2_objects:
+                        if element.get("type", False) in UPLOAD_INDICATOR_API_ACCEPTED_TYPES and \
+                                element.get("id") not in misp_indicator_ids:
+                            misp_indicator = RequestObject_Indicator(element, misp_event)
+                            if not misp_indicator.indicator:
+                                logging.debug("Unable to process indicator {}".format(element["id"]))
                             else:
-                                element["object_marking_refs"] = [TLP_MARKING_OBJECT_DEFINITION[event_tlp]]
-                        for tag in event_tags:
-                            if tag not in element.get("labels", []):
-                                element["labels"].append(tag)
+                                element["labels"] = misp_indicator.labels
+                                element["description"] = misp_indicator.description
+                                element["confidence"] = misp_indicator.confidence
+                                element["object_marking_refs"] = misp_indicator.object_marking_refs
+                                element["name"] = misp_indicator.name
+                                element["indicator_types"] = misp_indicator.indicator_types
+                                element["kill_chain_phases"] = misp_indicator.kill_chain_phases
+                                element["external_references"] = misp_indicator.external_references
+                                element["valid_until"] = misp_indicator.valid_until
+                                element["valid_from"] = misp_indicator.valid_from
 
-                        element["name"] = "{} {}".format(event_info, element.get("name", "")).strip()
+                                if misp_indicator.valid_until:
+                                    date_object = datetime.fromisoformat(misp_indicator.valid_until[:-1])
+                                    if date_object > datetime.now():
+                                        if config.verbose_log:
+                                            logging.debug("Add {} to list of indicators to upload".format(element.get("pattern")))
+                                        misp_indicator_ids.append(element.get("id"))
+                                        result_set.append(element)
+                                    else:
+                                        logging.error("Skipping outdated indicator {}".format(element.get("id")))
+                                else:
+                                    logging.error("Skipping indicator because valid_until was not set by MISP/MISP2Sentinel {}".format(element.get("id")))
 
-                        # Check for misp:confidence-level="fairly-confident" and others
-                        if not element.get("confidence", False):
-                            element["confidence"] = config.default_confidence
-
-                        # Link to MISP event
-                        misp_event_reference = {
-                            "source_name": "MISP",
-                            "description": "MISP Event: {}".format(event_info),
-                            "external_id": event_uuid,
-                            "url": "https://{}/events/view/{}".format(config.misp_domain, event_uuid)
-                        }
-                        if element.get("external_references", False):
-                            element["external_references"].append(misp_event_reference)
-                        else:
-                            element["external_references"] = [misp_event_reference]
-
-                        # Override valid until date
-                        if element.get("valid_until", False):
-                            element["valid_until"] = (datetime.datetime.utcnow() + datetime.timedelta(days=config.days_to_expire)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-                        else: 
-                            element["valid_until"] = (datetime.datetime.utcnow() + datetime.timedelta(days=config.days_to_expire)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
-                        misp_indicator_ids.append(element.get("id"))
-                        result_set.append(element)
                 logging.info("Processed {} indicators.".format(len(result_set)))
+
                 misp_page += 1
+
         except Exception as e:
             remaining_misp_pages = False
-            logging.info("Finished receiving MISP events.")
-
+            logging.error("Error when processing data from MISP {}".format(e))
     return result_set, len(result_set)
 
 def push_to_sentinel(tenant, id, secret, workspace):
