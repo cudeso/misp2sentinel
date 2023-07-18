@@ -36,10 +36,9 @@ This is how to create and configure the app registration:
 
 To make the app registration work in the other tenants you will need to grant admin consent to the enterprise app in each tenant. Please note that this will require you to add a redirect URL in the app registrations configuration, like `https://portal.azure.com`.
 
-1. In each tenant you wish to push data to, navigate to the following URL and grant admin consent:
+1. In each tenant you wish to push data to, navigate to the following URL and click accept to add the enterprise app to the tenant:
    `https://login.microsoftonline.com/common/adminconsent?client_id=<APP_ID>&sso_reload=true` 
-2. Add the enterprise application to the Micorosft Sentinel Contributor role on each workspace you wish to push data to.
-
+2. Add the enterprise application to the Microsoft Sentinel Contributor role on each workspace you wish to push data to.
 
 > **NOTE**: It might be a good idea to set the enterprise application in the native Azure AD tenant to not allow users to sign in.
 
@@ -50,7 +49,6 @@ This is how to create a Key Vault and store the secret value in it:
 1. Go to the service *Key vaults*
 2. Click *Create key vault*
 3. Configure the Key vault as you wish, pay attention to the region in which it is stored, for instance "West Europe"
-
 
 ### Formatting the Secret value
 
