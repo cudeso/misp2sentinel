@@ -1,6 +1,133 @@
 from distutils.command.config import config
 import MISP2Sentinel.config as config
 from MISP2Sentinel.constants import *
+from datetime import datetime, timedelta
+import logging
+
+
+class RequestObject_Indicator:
+    def __init__(self, element, misp_event):
+        self.labels = []
+        self.indicator = False
+        self.pattern = element.get("pattern", "")
+        self.description = element.get("description", "")
+        self.confidence = element.get("confidence", config.default_confidence)
+        self.object_marking_refs = element.get("object_marking_refs", [])
+        self.name = ""
+        self.indicator_types = element.get("indicator_types", [])
+        self.kill_chain_phases = element.get("kill_chain_phases", [])
+        self.external_references = element.get("external_references", [])
+        self.valid_until = element.get("valid_until", False)
+        self.valid_from = element.get("valid_from", False)
+        sentinel_threattype = False
+
+        if len(self.description) > 0:
+            self.description = "{} (Event UUID: {})".format(self.description, misp_event.uuid)
+        else:
+            self.description = "Event UUID: {}".format(misp_event.uuid)
+
+        for label in element.get("labels", []):
+            label = label.strip()
+
+            if "misp:type=" in label:
+                misp_type = label.split("=")[1].strip('"')
+                if misp_type not in UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES:
+                    logging.debug("Skipping type {}".format(misp_type))
+                    break
+            elif label in MISP_TAGS_IGNORE:
+                continue
+            elif MISP_CONFIDENCE["prefix"] in label.lower():
+                confidence_tag = label.lower().split("{}=".format(MISP_CONFIDENCE["prefix"]))[1].replace("\"", "")
+                for confidence in MISP_CONFIDENCE["matches"]:
+                    if confidence == confidence_tag:
+                        self.confidence = MISP_CONFIDENCE["matches"][confidence]
+            elif "sentinel-threattype" in label:
+                sentinel_threattype = label.split("sentinel-threattype:")[1].strip()
+                self.indicator_types.append(sentinel_threattype)
+            else:
+                skip_add = False
+                for tag in MISP_TAGS_IGNORE:
+                    if tag in label:
+                        skip_add = True
+                if not skip_add and label not in self.labels:
+                    self.labels.append(label)
+
+        if not sentinel_threattype:
+            if not misp_event.sentinel_threattype:
+                self.indicator_types.append(SENTINEL_DEFAULT_THREATTYPE)
+
+        if misp_event.tlp:
+            self.object_marking_refs.append(TLP_MARKING_OBJECT_DEFINITION[misp_event.tlp])
+
+        self.name = "{} {}".format(misp_event.info, element.get("name", "")).strip()
+
+        # Fix kill_chain_phases https://github.com/MISP/misp-stix/issues/47
+        phases = []
+        for phase in self.kill_chain_phases:
+            if phase.get("phase_name", False).strip().lower() == "network":
+                phases.append({"kill_chain_name": "misp-category", "phase_name": "Network activity"})
+            else:
+                phases.append(phase)
+        self.kill_chain_phases = phases
+
+        # Link to MISP event
+        self.external_references.append({
+                                        "source_name": "MISP",
+                                        "description": "MISP Event: {}".format(misp_event.info),
+                                        "external_id": misp_event.uuid,
+                                        "url": "{}/events/view/{}".format(config.misp_domain, misp_event.uuid)
+                                        })
+
+        date_object = False
+        # Set the valid_until if not set by MISP (never ; https://github.com/MISP/misp-stix/issues/1)
+        if not self.valid_until:
+            days_to_expire = config.days_to_expire
+
+            # If we have a mapping, then we use a custom number of days to expire
+            if hasattr(config, "days_to_expire_mapping"):
+                for el in config.days_to_expire_mapping:
+                    if el.strip().lower() in self.pattern:
+                        days_to_expire = config.days_to_expire_mapping[el]
+
+            if config.days_to_expire_start.lower().strip() == "current_date":       # We start counting from current date
+                date_object = datetime.now() + timedelta(days=days_to_expire)
+            elif config.days_to_expire_start.lower().strip() == "valid_from":       # Start counting from valid_from
+                date_object = datetime.fromisoformat(self.valid_from[:-1]) + timedelta(days=days_to_expire)
+            if date_object:
+                self.valid_until = date_object.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        for tag in misp_event.labels:
+            if tag not in self.labels:
+                self.labels.append(tag)
+
+        self.indicator = True
+
+
+class RequestObject_Event:
+    def __init__(self, element):
+        self.labels = []
+        self.info = False
+        self.uuid = False
+        self.tlp = False
+        self.sentinel_threattype = False
+
+        if element.get("labels", False):
+            for label in element.get("labels"):
+                label = label.strip()
+                if "tlp:" in label.lower() and label.lower() in TLP_MARKING_OBJECT_DEFINITION:
+                    self.tlp = label
+
+                if "sentinel-threattype" in label:
+                    self.sentinel_threattype = label.split("sentinel-threattype:")[1].strip()
+                
+                if label not in MISP_TAGS_IGNORE and label not in self.labels:
+                    self.labels.append(label)
+
+        if element.get("object_refs", False):
+            for object_ref in element.get("object_refs"):
+                if "indicator--" in object_ref:
+                    self.info = element.get("name", "").strip()
+                    self.uuid = element.get("id", "report--000").strip().split("report--")[1]
 
 
 class RequestObject:
@@ -22,7 +149,7 @@ class RequestObject:
         self.tags = []
         tags_remove = []
         for tag in attr.get("Tag", []):
-            if config.misp_ignore_localtags:
+            if config.ignore_localtags:
                 if tag["local"] != 1:
                     self.tags.append(tag['name'].strip())
         for tag in self.tags:
@@ -42,9 +169,16 @@ class RequestObject:
                 self.threatType = tag.split(':')[1]
                 tags_remove.append(tag)
 
+            if MISP_CONFIDENCE["prefix"] in tag.lower():
+                confidence_tag = tag.lower().split("{}=".format(MISP_CONFIDENCE["prefix"]))[1].replace("\"", "")
+                for confidence in MISP_CONFIDENCE["matches"]:
+                    if confidence == confidence_tag:
+                        self.confidence = MISP_CONFIDENCE["matches"][confidence]
+
         for tag in tags_remove:
             self.tags.remove(tag)
         self.additionalInformation = attr['comment']
+        print(attr["value"])
 
     def _handle_ip(self, attr, attr_type, graph_v4_name, graph_v6_name):
         if attr['type'] == attr_type:
@@ -54,11 +188,20 @@ class RequestObject:
                 setattr(self, graph_v6_name, attr['value'])
 
     def _aggregated_handle_ip(self, attr):
-        self._handle_ip(attr, 'ip-dst', 'networkDestinationIPv4', 'networkDestinationIPv6')
-        self._handle_ip(attr, 'ip-src', 'networkSourceIPv4', 'networkSourceIPv6')
+        # Fix https://github.com/cudeso/misp2sentinel/issues/21
+        if "/" in attr['value']:
+            self._handle_ip(attr, 'ip-dst', 'networkDestinationCidrBlock', 'networkDestinationIPv6')
+            self._handle_ip(attr, 'ip-src', 'networkSourceCidrBlock', 'networkSourceIPv6')
+        else:
+            self._handle_ip(attr, 'ip-dst', 'networkDestinationIPv4', 'networkDestinationIPv6')
+            self._handle_ip(attr, 'ip-src', 'networkSourceIPv4', 'networkSourceIPv6')
         if config.network_ignore_direction:
-            self._handle_ip(attr, 'ip-dst', 'networkIPv4', 'networkIPv6')
-            self._handle_ip(attr, 'ip-src', 'networkIPv4', 'networkIPv6')
+            if "/" in attr['value']:
+                self._handle_ip(attr, 'ip-dst', 'networkCidrBlock', 'networkIPv6')
+                self._handle_ip(attr, 'ip-src', 'networkCidrBlock', 'networkIPv6')
+            else:
+                self._handle_ip(attr, 'ip-dst', 'networkIPv4', 'networkIPv6')
+                self._handle_ip(attr, 'ip-src', 'networkIPv4', 'networkIPv6')
 
     def _handle_file_hash(self, attr):
         if attr['type'] in MISP_HASH_TYPES:
