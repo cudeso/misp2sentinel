@@ -39,7 +39,7 @@ class RequestManager:
             self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME+self.tenant+".txt", 'w')
             self.expiration_date = self._get_expiration_date_from_config()
         if self.expiration_date <= datetime.datetime.utcnow().strftime('%Y-%m-%d'):
-            logging.info("----------------CLEAR existing_indicators_hash---------------------------")
+            #logging.info("----------------CLEAR existing_indicators_hash---------------------------")
             self.existing_indicators_hash = {}
             self.expiration_date = self._get_expiration_date_from_config()
         self.hash_of_indicators_to_delete = copy.deepcopy(self.existing_indicators_hash)
@@ -106,8 +106,20 @@ class RequestManager:
         ).hexdigest()
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        '''This function is called when the context manager is exited
-        '''
+
+        if config.ms_auth["graph_api"]:
+            self._post_to_graph()
+            self._del_indicators_no_longer_exist()
+
+            self.expiration_date_fd.seek(0)
+            self.expiration_date_fd.write(self.expiration_date)
+            self.expiration_date_fd.truncate()
+
+            self.existing_indicators_hash_fd.seek(0)
+            json.dump(self.existing_indicators_hash, self.existing_indicators_hash_fd, indent=2)
+            self.existing_indicators_hash_fd.truncate()
+
+            self._print_summary()
 
     def _log_post(self, response):
         # self._clear_screen()
@@ -150,14 +162,8 @@ class RequestManager:
                     with open(f'{LOG_DIRECTORY_NAME}/{log_file_name}', 'w') as file:
                         json.dump(response, file)
 
-        if config.ms_auth["graph_api"]:
-            logging.info('sending security indicators to Microsoft Graph Security\n')
-            logging.info(f'{self.total_indicators} indicators are parsed from misp events. Only those that do not exist in Microsoft Graph Security will be sent.\n')
-        else:
-            logging.info(f'{self.total_indicators} indicators are parsed from misp events. \n')
-        cur_batch_took = self._get_timestamp() - self.last_batch_done_timestamp
-        self.last_batch_done_timestamp = self._get_timestamp()
-        logging.info(f'current batch took:   {round(cur_batch_took, 2):{6}} seconds')
+        logging.info('sending security indicators to Microsoft Graph Security\n')
+        logging.info(f'{self.total_indicators} indicators are parsed from misp events. Only those that do not exist in Microsoft Graph Security will be sent.\n')
 
     @staticmethod
     def _get_datetime_now():
@@ -194,18 +200,20 @@ class RequestManager:
     def upload_indicators(self, parsed_indicators):
         requests_number = 0
         start_timestamp = self._get_timestamp()
+        safe_margin = 3
         while len(parsed_indicators) > 0:
             if requests_number >= config.ms_max_requests_minute:
-                sleep_time = 102 - (self._get_timestamp() - start_timestamp)
+                sleep_time = (config.ms_max_requests_minute + safe_margin) - (self._get_timestamp() - start_timestamp)
                 if sleep_time > 0:
-                    logging.debug("Pausing upload for API request limit {}".format(sleep_time))
+                    logging.info("Pausing upload for API request limit {}".format(sleep_time))
                     time.sleep(sleep_time)
                 requests_number = 0
                 start_timestamp = self._get_timestamp()
 
             self._update_headers_if_expired()
             workspace_id = config.ms_auth["workspace_id"]
-            request_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api-version=2022-07-01"
+            api_version = config.ms_api_version
+            request_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api-version={api_version}"
             request_body = {"sourcesystem": "MISP", "value": parsed_indicators[:config.ms_max_indicators_request]}
             response = requests.post(request_url, headers=self.headers, json=request_body)
             if response.status_code == 200:
@@ -240,7 +248,6 @@ class RequestManager:
                 config.ms_auth[CLIENT_SECRET],
                 config.ms_auth[SCOPE])
             self.headers = {"Authorization": f"Bearer {access_token}", "user-agent": config.ms_useragent, "content-type": "application/json"}
-            logging.debug(access_token)
 
     @staticmethod
     def _clear_screen():
