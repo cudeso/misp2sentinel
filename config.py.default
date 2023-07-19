@@ -15,8 +15,8 @@ ms_passiveonly = False              # Graph API only
 ms_action = 'alert'                 # Graph API only
 
 ms_api_version = "2022-07-01"       # Upload Indicators API version
-ms_max_indicators_request = 100     # Throttle max: 100 indicators per request
-ms_max_requests_minute = 100        # Throttle max: 100 requests per minute
+ms_max_indicators_request = 100     # Upload Indicators API: Throttle max: 100 indicators per request
+ms_max_requests_minute = 100        # Upload Indicators API: Throttle max: 100 requests per minute
 
 
 ####
@@ -28,12 +28,12 @@ misp_verifycert = False
 misp_event_filters = {
     "published": 1,
     "tags": [ "workflow:state=\"complete\""],
-    "to_ids": 1,
     "enforceWarninglist": True,
-    "includeEventTags": True,    
+    "includeEventTags": True,
+    "publish_timestamp": "14d",
 }
 
-misp_event_limit_per_page = 50      # Upload Indicators API: Limit memory use when querying MISP for STIX packages
+misp_event_limit_per_page = 100     # Upload Indicators API: Limit memory use when querying MISP for STIX packages
 
 ####
 # Integration settings
