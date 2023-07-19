@@ -17,6 +17,8 @@ idna
 importlib-resources
 jmespath
 jsonschema
+lxml
+misp-stix
 pipenv
 platformdirs
 pyasn1
