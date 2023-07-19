@@ -166,6 +166,8 @@ def _init_configuration():
         config.ms_target_product = "Azure Sentinel"
     if not hasattr(config, "ms_action"):
         config.ms_action = "alert"
+    if not hasattr(config, "misp_event_limit_per_page"):
+        config.misp_event_limit_per_page = 100
 
     return use_old_config
 
@@ -221,7 +223,7 @@ def main():
                     parsed_event['activityGroupNames'].append(attr['value'])
                 if attr['type'] == 'comment':
                     parsed_event['description'] += attr['value']
-                if attr['type'] in MISP_ACTIONABLE_TYPES:
+                if attr['type'] in MISP_ACTIONABLE_TYPES and attr['to_ids'] == True:
                     parsed_event['request_objects'].append(RequestObject(attr))
             for obj in event['Object']:
                 for attr in obj['Attribute']:
@@ -229,7 +231,7 @@ def main():
                         parsed_event['activityGroupNames'].append(attr['value'])
                     if attr['type'] == 'comment':
                         parsed_event['description'] += attr['value']
-                    if attr['type'] in MISP_ACTIONABLE_TYPES:
+                    if attr['type'] in MISP_ACTIONABLE_TYPES and attr['to_ids'] == True:
                         parsed_event['request_objects'].append(RequestObject(attr))
             parsed_events.append(parsed_event)
         del events
