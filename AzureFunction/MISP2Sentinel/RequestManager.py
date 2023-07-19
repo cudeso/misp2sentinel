@@ -39,7 +39,7 @@ class RequestManager:
             self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME+self.tenant+".txt", 'w')
             self.expiration_date = self._get_expiration_date_from_config()
         if self.expiration_date <= datetime.datetime.utcnow().strftime('%Y-%m-%d'):
-            logging.info("----------------CLEAR existing_indicators_hash---------------------------")
+            #logging.info("----------------CLEAR existing_indicators_hash---------------------------")
             self.existing_indicators_hash = {}
             self.expiration_date = self._get_expiration_date_from_config()
         self.hash_of_indicators_to_delete = copy.deepcopy(self.existing_indicators_hash)
@@ -200,11 +200,12 @@ class RequestManager:
     def upload_indicators(self, parsed_indicators):
         requests_number = 0
         start_timestamp = self._get_timestamp()
+        safe_margin = 3
         while len(parsed_indicators) > 0:
             if requests_number >= config.ms_max_requests_minute:
-                sleep_time = (config.ms_max_requests_minute + 1) - (self._get_timestamp() - start_timestamp)
+                sleep_time = (config.ms_max_requests_minute + safe_margin) - (self._get_timestamp() - start_timestamp)
                 if sleep_time > 0:
-                    logging.debug("Pausing upload for API request limit {}".format(sleep_time))
+                    logging.info("Pausing upload for API request limit {}".format(sleep_time))
                     time.sleep(sleep_time)
                 requests_number = 0
                 start_timestamp = self._get_timestamp()

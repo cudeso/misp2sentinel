@@ -37,9 +37,9 @@ misp_verifycert = False
 
 # MISP Event filters
 misp_event_filters = {
-    "timestamp": "1d",
+    "timestamp": "14d",
     "enforceWarninglist": True,
-    "includeEventTags": True,
+    "includeEventTags": True
 }
 
 # MISP pagination settings
@@ -67,5 +67,5 @@ days_to_expire_mapping = {          # Upload indicators API only. Mapping for ex
                     "ipv4-addr": 150,
                     "ipv6-addr": 150,
                     "domain-name": 300,
-                    "url": 400,
+                    "url": 400
                 }

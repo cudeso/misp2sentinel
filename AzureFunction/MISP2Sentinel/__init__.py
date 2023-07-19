@@ -13,6 +13,9 @@ import logging
 import azure.functions as func
 import requests
 import json
+from misp_stix_converter import MISPtoSTIX21Parser
+from stix2.base import STIXJSONEncoder
+from datetime import datetime, timedelta, date
 
 if config.misp_verifycert is False:
     import urllib3
@@ -21,71 +24,56 @@ if config.misp_verifycert is False:
 def _get_misp_events_stix():
     misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
     result_set = []
-    logging.info("Query MISP for events and return them in stix2 format.")
+    logging.debug("Query MISP for events.")
     remaining_misp_pages = True
     misp_page = 1
     misp_indicator_ids = []
 
     while remaining_misp_pages:
         try:
-            # Avoid adding twice the "limit", as this would break pagination requests
             if "limit" in config.misp_event_filters:
-                result = misp.search(controller='events', return_format='stix2', **config.misp_event_filters)
+                result = misp.search(controller='events', return_format='json', **config.misp_event_filters)
             else:
-                result = misp.search(controller='events', return_format='stix2', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
+                result = misp.search(controller='events', return_format='json', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
 
-            if result.get("objects", False):
-                logging.info("Received MISP events page {}".format(misp_page))
-                stix2_objects = result.get("objects")
-                #print(stix2_objects)
-
-                misp_event = False
-                logging.info("Received {} objects".format(len(stix2_objects)))
-                for element in stix2_objects:       # Extract event information
-                    if element.get("type", False) == "report":
-                        misp_event = RequestObject_Event(element)
-
-                # If there's no event in the returned STIX package then something went wrong
-                if not misp_event:
-                    logging.debug("No MISP event in the returned STIX package. Skipping indicators.")
-                else:
-                    for element in stix2_objects:
-                        if element.get("type", False) in UPLOAD_INDICATOR_API_ACCEPTED_TYPES and \
-                                element.get("id") not in misp_indicator_ids:
+            if len(result) > 0:
+                logging.info("Received MISP events page {} with {} events".format(misp_page, len(result)))
+                for event in result:
+                    misp_event = RequestObject_Event(event["Event"])
+                    parser = MISPtoSTIX21Parser()
+                    parser.parse_misp_event(event)
+                    stix_objects = parser.stix_objects
+                    for element in stix_objects:
+                        if element.type in UPLOAD_INDICATOR_API_ACCEPTED_TYPES and \
+                                        element.id not in misp_indicator_ids:
                             misp_indicator = RequestObject_Indicator(element, misp_event)
-                            if not misp_indicator.indicator:
-                                logging.debug("Unable to process indicator {}".format(element["id"]))
-                            else:
-                                element["labels"] = misp_indicator.labels
-                                element["description"] = misp_indicator.description
-                                element["confidence"] = misp_indicator.confidence
-                                element["object_marking_refs"] = misp_indicator.object_marking_refs
-                                element["name"] = misp_indicator.name
-                                element["indicator_types"] = misp_indicator.indicator_types
-                                element["kill_chain_phases"] = misp_indicator.kill_chain_phases
-                                element["external_references"] = misp_indicator.external_references
-                                element["valid_until"] = misp_indicator.valid_until
-                                element["valid_from"] = misp_indicator.valid_from
-
+                            if misp_indicator.id:
                                 if misp_indicator.valid_until:
-                                    date_object = datetime.fromisoformat(misp_indicator.valid_until[:-1])
+                                    valid_until = json.dumps(misp_indicator.valid_until, cls=STIXJSONEncoder).replace("\"", "")
+                                    if "Z" in valid_until:
+                                        date_object = datetime.fromisoformat(valid_until[:-1])
+                                    else:
+                                        date_object = datetime.fromisoformat(valid_until)
                                     if date_object > datetime.now():
                                         if config.verbose_log:
-                                            logging.debug("Add {} to list of indicators to upload".format(element.get("pattern")))
-                                        misp_indicator_ids.append(element.get("id"))
-                                        result_set.append(element)
+                                            logging.debug("Add {} to list of indicators to upload".format(misp_indicator.pattern))
+                                        misp_indicator_ids.append(misp_indicator.id)
+                                        result_set.append(misp_indicator._get_dict())
                                     else:
-                                        logging.error("Skipping outdated indicator {}".format(element.get("id")))
+                                        logging.error("Skipping outdated indicator {}, valid_until: {}".format(misp_indicator.pattern, valid_until))
                                 else:
-                                    logging.error("Skipping indicator because valid_until was not set by MISP/MISP2Sentinel {}".format(element.get("id")))
-
-                logging.info("Processed {} indicators.".format(len(result_set)))
-
+                                    logging.error("Skipping indicator because valid_until was not set by MISP/MISP2Sentinel {}".format(misp_indicator.id))
+                            else:
+                                logging.error("Unable to process indicator")
+                logging.debug("Processed {} indicators.".format(len(result_set)))
                 misp_page += 1
+            else:
+                remaining_misp_pages = False
 
         except Exception as e:
             remaining_misp_pages = False
             logging.error("Error when processing data from MISP {}".format(e))
+
     return result_set, len(result_set)
 
 def push_to_sentinel(tenant, id, secret, workspace):
