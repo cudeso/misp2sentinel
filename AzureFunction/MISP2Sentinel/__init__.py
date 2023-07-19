@@ -9,13 +9,13 @@ import sys
 from functools import reduce
 import os
 import datetime
+from datetime import datetime, timedelta
 import logging
 import azure.functions as func
 import requests
 import json
 from misp_stix_converter import MISPtoSTIX21Parser
 from stix2.base import STIXJSONEncoder
-from datetime import datetime, timedelta, date
 
 if config.misp_verifycert is False:
     import urllib3
@@ -93,9 +93,11 @@ def pmain():
     for key, value in tenants.items():
         push_to_sentinel(key, value['id'], value['secret'], value['workspaceid'])
 
+from datetime import datetime, timezone
+
 def main(mytimer: func.TimerRequest) -> None:
-    utc_timestamp = datetime.datetime.utcnow().replace(
-        tzinfo=datetime.timezone.utc).isoformat()
+    utc_timestamp = datetime.utcnow().replace(
+        tzinfo=timezone.utc).isoformat()
 
     if mytimer.past_due:
         logging.info('The timer is past due!')
