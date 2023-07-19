@@ -2,131 +2,188 @@ from distutils.command.config import config
 import config
 from constants import *
 from datetime import datetime, timedelta
+from stix2.base import STIXJSONEncoder
+import json
 
 
 class RequestObject_Indicator:
+    def _get_dict(self):
+        dict = {}
+        dict["indicator_types"] = self.indicator_types
+        dict["confidence"] = self.confidence
+        dict["object_marking_refs"] = self.object_marking_refs
+        dict["external_references"] = self.external_references
+        dict["valid_from"] = json.dumps(self.valid_from, cls=STIXJSONEncoder).replace("\"", "")
+        dict["valid_until"] = json.dumps(self.valid_until, cls=STIXJSONEncoder).replace("\"", "")
+        dict["labels"] = self.labels
+        dict["type"] = self.type
+        dict["spec_version"] = self.spec_version
+        dict["id"] = self.id
+        dict["created_by_ref"] = self.created_by_ref
+        dict["created"] = json.dumps(self.created, cls=STIXJSONEncoder).replace("\"", "")
+        dict["modified"] = json.dumps(self.modified, cls=STIXJSONEncoder).replace("\"", "")
+        dict["description"] = self.description
+        dict["name"] = self.name
+        dict["pattern"] = self.pattern
+        dict["pattern_type"] = self.pattern_type
+        dict["pattern_version"] = self.pattern_version
+        dict["kill_chain_phases"] = self.kill_chain_phases
+        dict["revoked"] = self.revoked
+        return dict
+
     def __init__(self, element, misp_event, logger):
-        self.labels = []
-        self.indicator = False
-        self.pattern = element.get("pattern", "")
-        self.description = element.get("description", "")
-        self.confidence = element.get("confidence", config.default_confidence)
-        self.object_marking_refs = element.get("object_marking_refs", [])
-        self.name = ""
-        self.indicator_types = element.get("indicator_types", [])
-        self.kill_chain_phases = element.get("kill_chain_phases", [])
-        self.external_references = element.get("external_references", [])
-        self.valid_until = element.get("valid_until", False)
-        self.valid_from = element.get("valid_from", False)
+
+        if not hasattr(element, "id"):
+            self.id = False
+        if not hasattr(element, "indicator_types"):
+            self.indicator_types = []
+        if not hasattr(element, "confidence"):
+            self.confidence = config.default_confidence
+        if not hasattr(element, "description"):
+            self.description = ""
+        if not hasattr(element, "object_marking_refs"):
+            self.object_marking_refs = []
+        if not hasattr(element, "external_references"):
+            self.external_references = []
+        if not hasattr(element, "kill_chain_phases"):
+            self.kill_chain_phases = []
+        if not hasattr(element, "valid_from"):
+            self.valid_from = False
+        if not hasattr(element, "valid_until"):
+            self.valid_until = False
         sentinel_threattype = False
+        filtered_labels = []
+        filtered_kill_chain_phases = []
 
-        if len(self.description) > 0:
-            self.description = "{} (Event UUID: {})".format(self.description, misp_event.uuid)
+        # Convert all the STIX indicator elements (we already set some previously, catch the remaining properties)
+        for el in element:
+            setattr(self, el, element[el])
+
+        if self.pattern_type.strip().lower() != "stix":
+            self.id = False
+            logger.error("Ignoring non STIX pattern type {}".format(self.pattern_type))
+        elif not self.id:
+            logger.error("Ignoring indicator without ID {}".format(self.pattern))
         else:
-            self.description = "Event UUID: {}".format(misp_event.uuid)
-
-        for label in element.get("labels", []):
-            label = label.strip()
-
-            if "misp:type=" in label:
-                misp_type = label.split("=")[1].strip('"')
-                if misp_type not in UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES:
-                    logger.debug("Skipping type {}".format(misp_type))
-                    break
-            elif label in MISP_TAGS_IGNORE:
-                continue
-            elif MISP_CONFIDENCE["prefix"] in label.lower():
-                confidence_tag = label.lower().split("{}=".format(MISP_CONFIDENCE["prefix"]))[1].replace("\"", "")
-                for confidence in MISP_CONFIDENCE["matches"]:
-                    if confidence == confidence_tag:
-                        self.confidence = MISP_CONFIDENCE["matches"][confidence]
-            elif "sentinel-threattype" in label:
-                sentinel_threattype = label.split("sentinel-threattype:")[1].strip()
-                self.indicator_types.append(sentinel_threattype)
+            if len(self.description) > 0:
+                self.description = "{} - {}".format(self.description, misp_event.name)
             else:
-                skip_add = False
-                for tag in MISP_TAGS_IGNORE:
-                    if tag in label:
-                        skip_add = True
-                if not skip_add and label not in self.labels:
-                    self.labels.append(label)
+                self.description = "{}".format(misp_event.name)
 
-        if not sentinel_threattype:
-            if not misp_event.sentinel_threattype:
-                self.indicator_types.append(SENTINEL_DEFAULT_THREATTYPE)
+            for label in self.labels:
+                label = label.strip()
+                if "misp:type=" in label:
+                    misp_type = label.split("=")[1].strip('"')
+                    if misp_type not in UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES:
+                        logger.debug("Skipping type {}".format(misp_type))
+                        break
+                elif MISP_CONFIDENCE["prefix"] in label.lower():
+                    confidence_tag = label.lower().split("{}=".format(MISP_CONFIDENCE["prefix"]))[1].replace("\"", "")
+                    for confidence in MISP_CONFIDENCE["matches"]:
+                        if confidence == confidence_tag:
+                            self.confidence = MISP_CONFIDENCE["matches"][confidence]
+                elif "sentinel-threattype" in label:
+                    sentinel_threattype = label.split("sentinel-threattype:")[1].strip()
+                    if sentinel_threattype not in self.indicator_types:
+                        self.indicator_types.append(sentinel_threattype)
+                elif 'kill-chain:' in label:
+                    kill_chain = label.split(':')[1]
+                    if KILL_CHAIN_MARKING_OBJECT_DEFINITION.get(kill_chain):
+                        filtered_kill_chain_phases.append({"kill_chain_name": "lockheed-martin-cyber-kill-chain", "phase_name": kill_chain})
+                        self.object_marking_refs.append(KILL_CHAIN_MARKING_OBJECT_DEFINITION[kill_chain])
+                else:
+                    filtered_labels.append(label)
+            self.labels = filtered_labels
 
-        if misp_event.tlp:
-            self.object_marking_refs.append(TLP_MARKING_OBJECT_DEFINITION[misp_event.tlp])
+            if not sentinel_threattype:
+                if not misp_event.sentinel_threattype:
+                    self.indicator_types.append(SENTINEL_DEFAULT_THREATTYPE)
 
-        self.name = "{} {}".format(misp_event.info, element.get("name", "")).strip()
+            if misp_event.tlp:
+                self.object_marking_refs.append(TLP_MARKING_OBJECT_DEFINITION[misp_event.tlp])
 
-        # Fix kill_chain_phases https://github.com/MISP/misp-stix/issues/47
-        phases = []
-        for phase in self.kill_chain_phases:
-            if phase.get("phase_name", False).strip().lower() == "network":
-                phases.append({"kill_chain_name": "misp-category", "phase_name": "Network activity"})
-            else:
-                phases.append(phase)
-        self.kill_chain_phases = phases
+            self.name = "{} {}".format(misp_event.info, element.get("name", "")).strip()
 
-        # Link to MISP event
-        self.external_references.append({
-                                        "source_name": "MISP",
-                                        "description": "MISP Event: {}".format(misp_event.info),
-                                        "external_id": misp_event.uuid,
-                                        "url": "{}/events/view/{}".format(config.misp_domain, misp_event.uuid)
-                                        })
+            # Fix kill_chain_phases https://github.com/MISP/misp-stix/issues/47
+            for phase in self.kill_chain_phases:
+                '''if phase.phase_name == "network":
+                    phases.append({"kill_chain_name": "misp-category", "phase_name": "Network activity"})
+                else:
+                    phases.append({"kill_chain_name": phase.kill_chain_name, "phase_name": phase.phase_name})'''
+                filtered_kill_chain_phases.append({"kill_chain_name": phase.kill_chain_name, "phase_name": phase.phase_name})
+            self.kill_chain_phases = filtered_kill_chain_phases
 
-        date_object = False
-        # Set the valid_until if not set by MISP (never ; https://github.com/MISP/misp-stix/issues/1)
-        if not self.valid_until:
-            days_to_expire = config.days_to_expire
+            # Link to MISP event
+            self.external_references.append({
+                                            "source_name": "MISP",
+                                            "description": "MISP Event: {}".format(misp_event.info),
+                                            "external_id": misp_event.uuid,
+                                            "url": "{}/events/view/{}".format(config.misp_domain, misp_event.uuid)
+                                            })
 
-            # If we have a mapping, then we use a custom number of days to expire
-            if hasattr(config, "days_to_expire_mapping"):
-                for el in config.days_to_expire_mapping:
-                    if el.strip().lower() in self.pattern:
-                        days_to_expire = config.days_to_expire_mapping[el]
+            date_object = False
+            # Set the valid_until if not set by MISP (never ; https://github.com/MISP/misp-stix/issues/1)
+            if not self.valid_until:
+                days_to_expire = config.days_to_expire
 
-            if config.days_to_expire_start.lower().strip() == "current_date":       # We start counting from current date
-                date_object = datetime.now() + timedelta(days=days_to_expire)
-            elif config.days_to_expire_start.lower().strip() == "valid_from":       # Start counting from valid_from
-                date_object = datetime.fromisoformat(self.valid_from[:-1]) + timedelta(days=days_to_expire)
-            if date_object:
-                self.valid_until = date_object.strftime("%Y-%m-%dT%H:%M:%SZ")
+                # If we have a mapping, then we use a custom number of days to expire
+                if hasattr(config, "days_to_expire_mapping"):
+                    for el in config.days_to_expire_mapping:
+                        if el.strip().lower() in self.pattern:
+                            days_to_expire = config.days_to_expire_mapping[el]
 
-        for tag in misp_event.labels:
-            if tag not in self.labels:
-                self.labels.append(tag)
+                if config.days_to_expire_start.lower().strip() == "current_date":       # We start counting from current date
+                    date_object = datetime.now() + timedelta(days=days_to_expire)
+                elif config.days_to_expire_start.lower().strip() == "valid_from":       # Start counting from valid_from
+                    date_object = datetime.fromisoformat(self.valid_from[:-1]) + timedelta(days=days_to_expire)
+                if date_object:
+                    self.valid_until = date_object.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        self.indicator = True
+            for tag in misp_event.labels:
+                if tag not in self.labels:
+                    self.labels.append(tag)
+
+            self._cleanup_labels()
+
+    def _cleanup_labels(self):
+        new_labels = []
+        for label in self.labels:
+            ignore = False
+            if label.strip() in MISP_TAGS_IGNORE:
+                ignore = True
+            for tag in MISP_TAGS_IGNORE:
+                if tag.strip().lower() in label.strip().lower():
+                    ignore = True
+            if not ignore:
+                new_labels.append(label)
+        self.labels = new_labels
 
 
 class RequestObject_Event:
-    def __init__(self, element, logger):
+    def __init__(self, event, logger):
         self.labels = []
-        self.info = False
-        self.uuid = False
-        self.tlp = False
         self.sentinel_threattype = False
+        self.tlp = SENTINEL_DEFAULT_TLP
 
-        if element.get("labels", False):
-            for label in element.get("labels"):
-                label = label.strip()
-                if "tlp:" in label.lower() and label.lower() in TLP_MARKING_OBJECT_DEFINITION:
-                    self.tlp = label
+        for label in event.get("Tag", []):
+            label = label["name"].strip()
+            if "tlp:" in label.lower() and label.lower() in TLP_MARKING_OBJECT_DEFINITION:
+                self.tlp = label
 
-                if "sentinel-threattype" in label:
-                    self.sentinel_threattype = label.split("sentinel-threattype:")[1].strip()
-                
-                if label not in MISP_TAGS_IGNORE and label not in self.labels:
-                    self.labels.append(label)
+            if "sentinel-threattype" in label:
+                self.sentinel_threattype = label.split("sentinel-threattype:")[1].strip()
 
-        if element.get("object_refs", False):
-            for object_ref in element.get("object_refs"):
-                if "indicator--" in object_ref:
-                    self.info = element.get("name", "").strip()
-                    self.uuid = element.get("id", "report--000").strip().split("report--")[1]
+            if label not in self.labels:
+                self.labels.append(label)
+
+        self.uuid = event["uuid"]
+        self.info = event["info"]
+        self.id = event["id"]
+        self.threat_level_id = MISP_THREATLEVEL[int(event["threat_level_id"])]
+        self.analysis = MISP_ANALYSIS[int(event["analysis"])]
+        self.distribution = event["distribution"]
+        self.org = event["Org"]["name"].strip()
+        self.name = "{} ({}-{}) by {}".format(self.info, self.id, self.uuid, self.org)
 
 
 class RequestObject:

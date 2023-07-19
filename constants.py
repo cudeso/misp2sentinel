@@ -90,6 +90,15 @@ TLP_MARKING_OBJECT_DEFINITION={"tlp:white": "marking-definition--613f2e26-407d-4
                                     "tlp:amber+strict": "marking-definition--f88d31f6-486f-44da-b317-01333bde0b82",
                                     "tlp:red": "marking-definition--5e57c739-391a-4eb3-b6be-7d15ca92d5ed"}
 
+KILL_CHAIN_MARKING_OBJECT_DEFINITION = {"Reconnaissance": "stix:TTP-445b4827-3cca-42bd-8421-f2e947133c16",
+                                        "Weaponization": "stix:TTP-445b4827-3cca-42bd-8421-f2e947133c16",
+                                        "Delivery": "stix:TTP-79a0e041-9d5f-49bb-ada4-8322622b162d",
+                                        "Exploitation": "stix:TTP-f706e4e7-53d8-44ef-967f-81535c9db7d0",
+                                        "Installation": "stix:TTP-e1e4e3f7-be3b-4b39-b80a-a593cfd99a4f",
+                                        "Command and Control": "stix:TTP-d6dc32b9-2538-4951-8733-3cb9ef1daae2",
+                                        "Actions on Objectives": "stix:TTP-786ca8f9-2d9a-4213-b38e-399af4a2e5d6",
+                                        }
+
 EVENT_MAPPING = {
     'date': 'firstReportedDateTime',
     'timestamp': 'lastReportedDateTime',
@@ -121,6 +130,9 @@ OPTIONAL_GRAPH_METADATA = frozenset([
     "tags",
 ])
 
-MISP_TAGS_IGNORE = ["Threat-Report", "misp:tool=\"MISP-STIX-Converter\"", "misp:to_ids=\"True\"", "misp:to_ids=\"False\"", "misp:category=", "misp:name=", "misp:meta-category=", "misp:category="]
+MISP_TAGS_IGNORE = ["misp-galaxy:", "Threat-Report", "misp:tool=\"MISP-STIX-Converter\"", "misp:to_ids=\"True\"", "misp:to_ids=\"False\"", "misp:category=", "misp:name=", "misp:meta-category=", "misp:category=", "misp:type="]
 MISP_CONFIDENCE = {"prefix": "misp:confidence-level", "matches": {"completely-confident": 100, "confidence-cannot-be-evalued": 50, "fairly-confident": 50, "rarely-confident": 25, "unconfident": 0, "usually-confident": 75}}
+MISP_ANALYSIS = {0: "Initial", 1: "Ongoing", 2: "Completed"}
+MISP_THREATLEVEL = {1: "Low", 2: "Medium" , 3: "High", 4: "Unknown"}
 SENTINEL_DEFAULT_THREATTYPE = "WatchList"
+SENTINEL_DEFAULT_TLP = "tlp:white"
