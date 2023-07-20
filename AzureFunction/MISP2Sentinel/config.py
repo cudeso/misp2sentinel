@@ -43,7 +43,7 @@ misp_event_filters = {
 }
 
 # MISP pagination settings
-misp_event_limit_per_page = 50      # Limit memory use when querying MISP for STIX packages
+misp_event_limit_per_page = 100      # Limit memory use when querying MISP for STIX packages
 
 ########################
 # Integration settings #
