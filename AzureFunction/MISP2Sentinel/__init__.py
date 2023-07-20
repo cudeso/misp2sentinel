@@ -9,7 +9,7 @@ import sys
 from functools import reduce
 import os
 import datetime
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import azure.functions as func
 import requests
@@ -86,14 +86,18 @@ def push_to_sentinel(tenant, id, secret, workspace):
     logging.info("Found {} indicators in MISP".format(total_indicators))
 
     with RequestManager(total_indicators, tenant) as request_manager:
-        request_manager.upload_indicators(parsed_indicators)
+    logging.info("Start uploading indicators")
+    request_manager.upload_indicators(parsed_indicators)
+    logging.info("Finished uploading indicators")
+    if config.write_parsed_indicators:
+        json_formatted_str = json.dumps(parsed_indicators, indent=4)
+        with open("parsed_indicators.txt", "w") as fp:
+            fp.write(json_formatted_str)
 
 def pmain():
     tenants = json.loads(os.getenv('tenants'))
     for key, value in tenants.items():
         push_to_sentinel(key, value['id'], value['secret'], value['workspaceid'])
-
-from datetime import datetime, timezone
 
 def main(mytimer: func.TimerRequest) -> None:
     utc_timestamp = datetime.utcnow().replace(
