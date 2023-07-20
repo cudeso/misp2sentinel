@@ -234,7 +234,6 @@ class RequestObject:
         for tag in tags_remove:
             self.tags.remove(tag)
         self.additionalInformation = attr['comment']
-        print(attr["value"])
 
     def _handle_ip(self, attr, attr_type, graph_v4_name, graph_v6_name):
         if attr['type'] == attr_type:
