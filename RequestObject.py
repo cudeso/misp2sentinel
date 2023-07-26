@@ -33,6 +33,9 @@ class RequestObject_Indicator:
 
     def __init__(self, element, misp_event, logger):
 
+        self.misp_event = misp_event
+        self.logger = logger
+
         if not hasattr(element, "id"):
             self.id = False
         if not hasattr(element, "indicator_types"):
@@ -123,7 +126,7 @@ class RequestObject_Indicator:
 
             date_object = False
             # Set the valid_until if not set by MISP (never ; https://github.com/MISP/misp-stix/issues/1)
-            if not self.valid_until:
+            if config.days_to_expire_ignore_misp_last_seen or not self.valid_until:
                 days_to_expire = config.days_to_expire
 
                 # If we have a mapping, then we use a custom number of days to expire

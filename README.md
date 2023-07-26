@@ -334,11 +334,15 @@ Only indicaotrs of type `stix` are used, as such the attributes of type `yara` o
 
 For the Upload Indicators API:
 - If the attribute type is in `days_to_expire_mapping`, use the days defined in the mapping
-- If the there is no mapping, then use `days_to_expire`
+- If the there is no mapping, then use the default `days_to_expire`
 - Start counting from today if `days_to_expire_start` is "current_date" (or from the "valid_from" time)
 - If the end count date is beyond the date set in "valid_until", then discard the indicator
 
-The `valid_until` value is set in MISP with the `last_seen` of an attribute.
+The `valid_until` value is set in MISP with the `last_seen` of an attribute. Depending on your use case you might want to ignore the `last_seen` of an attribute, and consequently ignore the  `valid_until` value. Do this by setting the configuration option `days_to_expire_ignore_misp_last_seen` to True.
+
+```
+days_to_expire_ignore_misp_last_seen = True
+```
 
 #### Attribute mapping
 

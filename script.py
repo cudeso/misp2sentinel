@@ -87,6 +87,7 @@ def _get_misp_events_stix():
         try:
             if "limit" in config.misp_event_filters:
                 result = misp.search(controller='events', return_format='json', **config.misp_event_filters)
+                remaining_misp_pages = False # Limits are set in the misp_event_filters 
             else:
                 result = misp.search(controller='events', return_format='json', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
 
@@ -94,9 +95,13 @@ def _get_misp_events_stix():
                 logger.info("Received MISP events page {} with {} events".format(misp_page, len(result)))
                 for event in result:
                     misp_event = RequestObject_Event(event["Event"], logger)
-                    parser = MISPtoSTIX21Parser()
-                    parser.parse_misp_event(event)
-                    stix_objects = parser.stix_objects
+                    try:
+                        parser = MISPtoSTIX21Parser()
+                        parser.parse_misp_event(event)
+                        stix_objects = parser.stix_objects
+                    except Exception as e:
+                        logger.error("Error when processing data in event {} from MISP {}".format(misp_event.id, e))
+                        continue
                     for element in stix_objects:
                         if element.type in UPLOAD_INDICATOR_API_ACCEPTED_TYPES and \
                                         element.id not in misp_indicator_ids:
@@ -114,7 +119,7 @@ def _get_misp_events_stix():
                                         misp_indicator_ids.append(misp_indicator.id)
                                         result_set.append(misp_indicator._get_dict())
                                     else:
-                                        logger.error("Skipping outdated indicator {}, valid_until: {}".format(misp_indicator.pattern, valid_until))
+                                        logger.error("Skipping outdated indicator {} in event {}, valid_until: {}".format(misp_indicator.pattern, misp_event.id, valid_until))
                                 else:
                                     logger.error("Skipping indicator because valid_until was not set by MISP/MISP2Sentinel {}".format(misp_indicator.id))
                             else:
@@ -168,6 +173,8 @@ def _init_configuration():
         config.ms_action = "alert"
     if not hasattr(config, "misp_event_limit_per_page"):
         config.misp_event_limit_per_page = 100
+    if not hasattr(config, "days_to_expire_ignore_misp_last_seen"):
+        config.days_to_expire_ignore_misp_last_seen = False
 
     return use_old_config
 
