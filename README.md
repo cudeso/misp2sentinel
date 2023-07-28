@@ -12,7 +12,6 @@
     - [Microsoft settings](#microsoft-settings)
     - [MISP settings](#misp-settings)
     - [Integration settings](#integration-settings)
-  - [Configuration mapping](#configuration-mapping)
   - [Setup](#setup)
     - [Cron job](#cron-job)
   - [Integration details](#integration-details)
@@ -45,6 +44,28 @@ The integration supports two methods for sending threat intelligence from MISP t
 
 - Use the [Upload Indicators API](https://learn.microsoft.com/en-us/azure/sentinel/connect-threat-intelligence-upload-api), or
 - Use the Graph API. This Microsoft Graph API is [deprecated](https://learn.microsoft.com/en-us/graph/migrate-azure-ad-graph-overview) and it is recommended to use the new Upload Indicators API. To facilitate the transition period, the integration script supports both APIs.
+
+If you were previously using the *old* integration of MISP2Sentinel via the Microsoft Graph API then take a moment before upgrading.
+
+- The new integration has different dependencies, for example the Python libarary [misp-stix](https://github.com/MISP/misp-stix) needs to be installed;
+- Your Azure App requires permissions on your workplace;
+- There are changes in `config.py`. The most important changes are listed below, you can always have a look at [_init_configuration()](https://github.com/cudeso/misp2sentinel/blob/main/script.py#L145) for all the details.
+
+| Old | New |
+|-----|-----|
+| graph_auth  | ms_auth (now requires a 'scope') |
+| targetProduct  | ms_target_product (Graph API only) |
+| action | ms_action (Graph API only) |
+| passiveOnly | ms_passiveonly (Graph API only)|
+| defaultConfidenceLevel | default_confidence |
+| | ms_api_version (Upload indicators) |
+| | ms_max_indicators_request (Upload indicators) |
+| | ms_max_requests_minute (Upload indicators) |
+| | misp_event_limit_per_page (Upload indicators) |
+| | days_to_expire_start (Upload indicators) |
+| | days_to_expire_mapping (Upload indicators) |
+| | days_to_expire_ignore_misp_last_seen (Upload indicators) |
+| | log_file (Upload indicators) |
 
 ### STIX instead of MISP JSON
 
@@ -249,18 +270,6 @@ write_post_json = False             # Graph API only
 verbose_log = False
 write_parsed_indicators = False      # Upload Indicators only
 ```
-
-## Configuration mapping
-
-This is the overview of old (before adding Upload Indicators API) and new configuration settings. Also see function `_init_configuration`.
-
-| Old | New |
-|-----|-----|
-| graph_auth  | ms_auth  |
-| targetProduct  | ms_target_product  |
-| action | ms_action |
-| passiveOnly | ms_passiveonly |
-| defaultConfidenceLevel | default_confidence |
 
 ## Setup 
 
