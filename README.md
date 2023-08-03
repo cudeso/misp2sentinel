@@ -12,7 +12,7 @@
     - [Microsoft settings](#microsoft-settings)
     - [MISP settings](#misp-settings)
     - [Integration settings](#integration-settings)
-    - [Azure Key Vault integration (only works on Azure VMs)](#Azure-Key-Vault-integration-(only-works-on-Azure-VMs))
+    - [Azure Key Vault integration (only works on Azure VMs)](#azure-key-vault-integration-only-works-on-azure-vms)
   - [Setup](#setup)
     - [Cron job](#cron-job)
   - [Integration details](#integration-details)
