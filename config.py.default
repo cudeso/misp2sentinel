@@ -1,19 +1,19 @@
 # Code for supporting storage of secrets in key vault (only works for VMs running on Azure)
-import os
-from azure.keyvault.secrets import SecretClient
-from azure.identity import DefaultAzureCredential
+#import os
+#from azure.keyvault.secrets import SecretClient
+#from azure.identity import DefaultAzureCredential
 
 # Key vault section
-keyVaultName = "misp-keys"
-KVUri = f"https://{keyVaultName}.vault.azure.net"
+#keyVaultName = "misp-keys"
+#KVUri = f"https://{keyVaultName}.vault.azure.net"
 
 # Log in with the virtual machines managed identity
-credential = DefaultAzureCredential()
-client = SecretClient(vault_url=KVUri, credential=credential)
+#credential = DefaultAzureCredential()
+#client = SecretClient(vault_url=KVUri, credential=credential)
 
 # Retrieve values from KV (client secret, MISP-key most importantly)
-retrieved_mispkey = client.get_secret('MISP-Key')
-retrieved_clientsecret = client.get_secret('ClientSecret')
+#retrieved_mispkey = client.get_secret('MISP-Key')
+#retrieved_clientsecret = client.get_secret('ClientSecret')
 
 # Set values with 
 # misp_key = retrieved_mispkey.value
