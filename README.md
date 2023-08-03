@@ -208,6 +208,50 @@ There's one additional setting for the Upload Indicators API and that's `misp_ev
 
 - `misp_event_limit_per_page = 50`
 
+### Azure Key Vault integration (only works on Azure VMs)
+
+To avoid having secrets in cleartext saved, you can integrate with an Azure Key Vault.
+1. Enable a managed identity for the virtual machine
+2. Create an Azure Key Vault
+3. Create the secrets `MISP-Key` and `ClientSecret` in the secrets tab
+4. Give the virtual machine managed identity access to the `Reader` role on the Azure Key Vault
+5. Give the same managed identity `Get` and `List` secret actions in the Access Policy
+6. Make sure to run installation of `requirements.txt` again, as this requires two new libraries:
+   * azure-keyvault-secrets
+   * azure-identity
+
+The rest of the configuration is done in `config.py`:
+
+```python
+# Code for supporting storage of secrets in key vault (only works for VMs running on Azure)
+import os
+from azure.keyvault.secrets import SecretClient
+from azure.identity import DefaultAzureCredential
+
+# Key vault section
+keyVaultName = "misp-keys"
+KVUri = f"https://{keyVaultName}.vault.azure.net"
+
+# Log in with the virtual machines managed identity
+credential = DefaultAzureCredential()
+client = SecretClient(vault_url=KVUri, credential=credential)
+
+# Retrieve values from KV (client secret, MISP-key most importantly)
+retrieved_mispkey = client.get_secret('MISP-Key')
+retrieved_clientsecret = client.get_secret('ClientSecret')
+```
+
+1. Firstly, uncomment the lines in `config.py` so it matches the above
+2. Make sure the variable `keyVaultName` is set to the name of the key vault you set up earlier (this is also a good time to double check that the managed identity has the correct access to the KV)
+3. Replace the value for the `misp_key` variable:
+   ```
+   misp_key = retrieved_mispkey.value
+   ```
+4. Replace the value for the `client_secret` variable in the `ms_auth`-blob:
+   ```
+   'client_secret': retrieved_clientsecret.value
+   ```
+
 ### Integration settings
 
 The remainder of the settings deal with how the integration is handled.
