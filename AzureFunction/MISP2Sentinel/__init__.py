@@ -52,6 +52,8 @@ def _get_misp_events_stix():
                                     valid_until = json.dumps(misp_indicator.valid_until, cls=STIXJSONEncoder).replace("\"", "")
                                     if "Z" in valid_until:
                                         date_object = datetime.fromisoformat(valid_until[:-1])
+                                    elif "." in valid_until:
+                                        date_object = datetime.fromisoformat(valid_until.split(".")[0])
                                     else:
                                         date_object = datetime.fromisoformat(valid_until)
                                     if date_object > datetime.now():
