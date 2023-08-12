@@ -7,13 +7,13 @@
     - [Azure](#azure)
       - [Azure App registration](#azure-app-registration)
       - [Threat intelligence data connector](#threat-intelligence-data-connector)
-      - [Azure Function (optional)](#azure-function)
+      - [Azure Function](#azure-function)
     - [MISP](#misp)
   - [Configuration](#configuration)
     - [Microsoft settings](#microsoft-settings)
     - [MISP settings](#misp-settings)
-    - [Integration settings](#integration-settings)
     - [Azure Key Vault integration (only works on Azure VMs)](#azure-key-vault-integration-only-works-on-azure-vms)
+    - [Integration settings](#integration-settings)
   - [Setup](#setup)
     - [Cron job](#cron-job)
   - [Integration details](#integration-details)
@@ -30,6 +30,7 @@
       - [Ignored types](#ignored-types)
       - [Expiration date](#expiration-date)
       - [Attribute mapping](#attribute-mapping)
+    - [Detailed workflow for Upload Indicators API](#detailed-workflow-for-upload-indicators-api)
   - [FAQ](#faq)
     - [I don't see my indicator in Sentinel](#i-dont-see-my-indicator-in-sentinel)
   - [Additional documentation](#additional-documentation)
@@ -49,7 +50,7 @@ The integration supports two methods for sending threat intelligence from MISP t
 
 If you were previously using the *old* integration of MISP2Sentinel via the Microsoft Graph API then take a moment before upgrading.
 
-- The new integration has different dependencies, for example the Python libarary [misp-stix](https://github.com/MISP/misp-stix) needs to be installed;
+- The new integration has different dependencies, for example the Python library [misp-stix](https://github.com/MISP/misp-stix) needs to be installed;
 - Your Azure App requires permissions on your workplace;
 - There are changes in `config.py`. The most important changes are listed below, you can always have a look at [_init_configuration()](https://github.com/cudeso/misp2sentinel/blob/main/script.py#L145) for all the details.
 
@@ -484,6 +485,55 @@ MISP_SPECIAL_CASE_TYPES = frozenset([
 - - MISP URL values that do not start with http or https or changed to start with http. Azure does not accept URLs that do not start with http
 
 The supported hashes are defined in the set `MISP_HASH_TYPES`.
+
+
+### Detailed workflow for Upload Indicators API
+
+The integration workflow is as follows:
+
+- `script.py`
+  - The `main` function starts the request for the MISP events via `_get_misp_events_stix()`
+  - In `_get_misp_events_stix()` the MISP REST API is queried for events matching your search queries (defined in `misp_event_filters`)
+  - This REST API returns a **paged** result in **JSON** format
+    - **DEBUG**: If you get the message `Received MISP events page {} with {} events` in the log then the script was successful in querying MISP events
+    - The function loops through the events, as long as the result set is not empty. 
+      - If it is empty, then `remaining_misp_pages` is set to False, exiting the loop
+      - If you provided a limit in `misp_event_filters`, then events are queried in one go
+      - Note that the MISP REST API supports returning STIX2 format, but at the time of development the API didn't handle requests for non-existing pages (pages with a result set of 0 events; the API does not return the number of pages, so you have to query until the result set is 0)
+      - This was raised as a bug report with [issue 44](https://github.com/MISP/misp-stix/issues/44) in misp-stix and solved with [MISP/MISP@18fd906](https://github.com/MISP/MISP/commit/18fd906e52065e8a46b06c420c562d957459d639)
+        - On the roadmap withissue [issue 52](https://github.com/cudeso/misp2sentinel/issues/52)
+  - In `RequestObject_Event` the event tags are converted to tags, the event name is set and a TLP is set
+  - For each event, it will **parse and convert the JSON to STIX** with `MISPtoSTIX21Parser` with the function `parse_misp_event()` (this is part of misp-stix)
+  - This conversion returns **stix_objects**. If the conversion returns errors, the script will continue. The reason is that we want the upload to continue, even if the conversion for one event fails.
+    - **DEBUG** You can track these errors with the message `Error when processing data in event {} from MISP {}`
+  - It then loops through the stix objects
+    - Only valid types for uploading to the Upload Indicators API are considered
+      - An invalid type is ignored and processing continues
+      - For example indicators of type YARA are ignored, but other indicators in the event should still be processed
+    - For each indicator, the class `RequestObject_Indicator` is instantiated
+      - This sets the description to refer to the event
+      - Converts the MISP tags to labels, removing some of the non-relevant tags
+      - Adds the confidence level
+      - Sets the sentinel-threattype, kill chain and tlp labels
+      - Adds a reference to the MISP event
+      - Sets the expiration date of the attribute
+    - Only if there is a valid expiration date of the indicator (either calculated or set in the threat event), the indicator is considered
+      - Errors are logged with `Skipping indicator because valid_until was not set by MISP/MISP2Sentinel {}`
+    - Valid indicators are added to the list `result_set`
+  - When all indicators are processed, it logs `Processed {} indicators` (if debug is set to True)
+  - When all remaining pages with results are processed, it logs `Received {} indicators in MISP`
+  - Then `upload_indicators()` from `RequestManager` is called
+    - At this stage the script will start interacting with Microsoft Sentinel. All actions before this step are "local", related to MISP
+    - It takes into account the upload limits. If it needs to wait an message is logged with `Pausing upload for API request limit {}`.    
+  - It starts processing all `processed_indicators`
+    - Uploads are done in batches of `config.ms_max_indicators_request` indicators
+    - A POST request is done to Microsoft Sentinel
+      - If the HTTP status code is not 200, or if the "error" key is in the response then something went wrong. This is logged with `Error when submitting indicators. {}`.
+        - An error indicates the Azure App does not have sufficient permissions, or that something on the receiving (Sentinel) side is not OK.
+      - If the request was successful, it logs this with `Indicators sent - request number: {} / indicators: {} / remaining: {}`
+  - When it's done, it will log `Finished uploading indicators`
+
+![docs/base-MISP2Sentinel-workflow.png](docs/base-MISP2Sentinel-workflow.png)
 
 ## FAQ
 
