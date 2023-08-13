@@ -1,6 +1,7 @@
 - [MISP to Microsoft Sentinel integration](#misp-to-microsoft-sentinel-integration)
   - [Introduction](#introduction)
     - [Upload Indicators API and Graph API](#upload-indicators-api-and-graph-api)
+    - [Configuration changes](#configuration-changes)
     - [STIX instead of MISP JSON](#stix-instead-of-misp-json)
     - [Sentinel Workspaces](#sentinel-workspaces)
   - [Installation](#installation)
@@ -56,6 +57,8 @@ If you were previously using the *old* integration of MISP2Sentinel via the Micr
 - Your Azure App requires permissions on your workplace;
 - There are changes in `config.py`. The most important changes are listed below, you can always have a look at [_init_configuration()](https://github.com/cudeso/misp2sentinel/blob/main/script.py#L145) for all the details.
 
+### Configuration changes
+
 | Old | New |
 |-----|-----|
 | graph_auth  | ms_auth (now requires a 'scope') |
@@ -71,6 +74,8 @@ If you were previously using the *old* integration of MISP2Sentinel via the Micr
 | | days_to_expire_mapping (Upload indicators) |
 | | days_to_expire_ignore_misp_last_seen (Upload indicators) |
 | | log_file (Upload indicators) |
+| | misp_remove_eventreports (Upload indicators) |
+| | sentinel_write_response (Upload indicators) |
 
 ### STIX instead of MISP JSON
 
