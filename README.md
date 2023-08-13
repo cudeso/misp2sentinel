@@ -33,6 +33,8 @@
     - [Detailed workflow for Upload Indicators API](#detailed-workflow-for-upload-indicators-api)
   - [FAQ](#faq)
     - [I don't see my indicator in Sentinel](#i-dont-see-my-indicator-in-sentinel)
+    - [Can I get a copy of the requests sent to Sentinel?](#can-i-get-a-copy-of-the-requests-sent-to-sentinel)
+    - [Can I get a copy of the response errors returned by Sentinel?](#can-i-get-a-copy-of-the-response-errors-returned-by-sentinel)
   - [Additional documentation](#additional-documentation)
 
 # MISP to Microsoft Sentinel integration
@@ -330,6 +332,8 @@ days_to_expire_mapping = {          # Upload indicators API only. Mapping for ex
                 }
 ```
 
+In MISP you can set the *first seen* and *last seen* value of attributes. In the MISP-STIX conversion, this last seen value is translated to *valid_until*. This valid_until influences the expiration date of the indicator. If the expiration date (calculated with the above values) is after the current date, then it is ignored. In some cases it can be useful to ignore the last seen value set in MISP, and just use your own calculations of the expiration date. You can do this with `days_to_expire_ignore_misp_last_seen`. This ignores the last seen value, and calculates expiration date based on `days_to_expire` (and _mapping).
+
 **Script output**
 
 This version of MISP2Sentinel writes its output to a log file (defined in `log_file`).
@@ -542,6 +546,14 @@ The integration workflow is as follows:
 - Is the event published?
 - Is the to_ids flag set to True?
 - Is the indicator stored in a valid attribute type (`UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES`)?
+
+### Can I get a copy of the requests sent to Sentinel?
+
+When you use the **Upload Indicators API** you can print the STIX package sent to Microsoft Sentinel by setting `write_parsed_indicators` to True. This writes all packages to `parsed_indicators.txt`. This file is overwritten at each execution of the script.
+
+### Can I get a copy of the response errors returned by Sentinel?
+
+When you use the **Upload Indicators API** you can print the errors returned by Sentinel by setting `sentinel_write_response` to True. This writes the response strings from Microsoft Sentinel that contain an "error" key to `sentinel_response.txt`.
 
 ## Additional documentation
 

@@ -97,10 +97,10 @@ def _get_misp_events_stix():
                     misp_event = RequestObject_Event(event["Event"], logger)
                     try:
                         parser = MISPtoSTIX21Parser()
-                        parser.parse_misp_event(event)
+                        parser.parse_misp_event(misp_event.event)
                         stix_objects = parser.stix_objects
                     except Exception as e:
-                        logger.error("Error when processing data in event {} from MISP {}".format(misp_event.id, e))
+                        logger.error("Error when processing data in event {} from MISP {}. Most likely a MISP-STIX conversion problem.".format(misp_event.id, e))
                         continue
                     for element in stix_objects:
                         if element.type in UPLOAD_INDICATOR_API_ACCEPTED_TYPES and \
@@ -126,8 +126,8 @@ def _get_misp_events_stix():
                                 else:
                                     logger.error("Skipping indicator because valid_until was not set by MISP/MISP2Sentinel {}".format(misp_indicator.id))
                             else:
-                                logger.error("Unable to process indicator")
-                logger.debug("Processed {} indicators.".format(len(result_set)))
+                                logger.error("Unable to process indicator. Invalid indicator type or invalid valid_until date.")
+                logger.info("Processed {} indicators".format(len(result_set)))
                 misp_page += 1
             else:
                 remaining_misp_pages = False
@@ -178,6 +178,10 @@ def _init_configuration():
         config.misp_event_limit_per_page = 100
     if not hasattr(config, "days_to_expire_ignore_misp_last_seen"):
         config.days_to_expire_ignore_misp_last_seen = False
+    if not hasattr(config, "misp_remove_eventreports"):
+        config.misp_remove_eventreports = True
+    if not hasattr(config, "sentinel_write_response"):
+        config.sentinel_write_response = False
 
     return use_old_config
 

@@ -216,14 +216,18 @@ class RequestManager:
             response = requests.post(request_url, headers=self.headers, json=request_body)
             if response.status_code == 200:
                 if "errors" in response.json() and len(response.json()["errors"]) > 0:
-                    self.logger.error("Error when submitting indicators. {}".format(response.text))
+                    if config.sentinel_write_response:
+                        json_formatted_str = json.dumps(response.json(), indent=4)
+                        with open("sentinel_response.txt", "a") as fp:
+                            fp.write(json_formatted_str)                    
+                    self.logger.error("Error when submitting indicators - error string received from Sentinel. {}".format(response.text))
                     break
                 else:
                     parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
                     self.logger.info("Indicators sent - request number: {} / indicators: {} / remaining: {}".format(requests_number, len(request_body["value"]), len(parsed_indicators)))
                     requests_number += 1
             else:
-                self.logger.error("Error when submitting indicators. {}".format(response.text))
+                self.logger.error("Error when submitting indicators. Non HTTP-200 response. {}".format(response.text))
                 break
 
     def handle_indicator(self, indicator):

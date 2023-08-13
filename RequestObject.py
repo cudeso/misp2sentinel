@@ -164,9 +164,14 @@ class RequestObject_Indicator:
 
 class RequestObject_Event:
     def __init__(self, event, logger):
+        self.event = event
         self.labels = []
         self.sentinel_threattype = False
         self.tlp = SENTINEL_DEFAULT_TLP
+
+        if config.misp_remove_eventreports:
+            if self.event.get("EventReport", False):
+                self.event["EventReport"] = []
 
         for label in event.get("Tag", []):
             label = label["name"].strip()
