@@ -126,7 +126,7 @@ def _get_misp_events_stix():
                                 else:
                                     logger.error("Skipping indicator because valid_until was not set by MISP/MISP2Sentinel {}".format(misp_indicator.id))
                             else:
-                                logger.error("Unable to process indicator. Invalid indicator type or invalid valid_until date.")
+                                logger.error("Unable to process indicator. Invalid indicator type or invalid valid_until date. Event {}".format(misp_event.id))
                 logger.info("Processed {} indicators".format(len(result_set)))
                 misp_page += 1
             else:
