@@ -238,7 +238,7 @@ def main():
                 if attr['type'] == 'comment':
                     parsed_event['description'] += attr['value']
                 if attr['type'] in MISP_ACTIONABLE_TYPES and attr['to_ids'] == True:
-                    parsed_event['request_objects'].append(RequestObject(attr))
+                    parsed_event['request_objects'].append(RequestObject(attr, parsed_event['description']))
             for obj in event['Object']:
                 for attr in obj['Attribute']:
                     if attr['type'] == 'threat-actor':
@@ -246,7 +246,7 @@ def main():
                     if attr['type'] == 'comment':
                         parsed_event['description'] += attr['value']
                     if attr['type'] in MISP_ACTIONABLE_TYPES and attr['to_ids'] == True:
-                        parsed_event['request_objects'].append(RequestObject(attr))
+                        parsed_event['request_objects'].append(RequestObject(attr, parsed_event['description']))
             parsed_events.append(parsed_event)
         del events
         total_indicators = sum([len(v['request_objects']) for v in parsed_events])

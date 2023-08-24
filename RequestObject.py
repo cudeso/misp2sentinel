@@ -202,7 +202,7 @@ class RequestObject:
         # then use request.__dict__ to get the parsed dict
 
     """
-    def __init__(self, attr):
+    def __init__(self, attr, event_description=""):
         mapping = ATTR_MAPPING.get(attr['type'])
         if mapping is not None:
             setattr(self, mapping, attr['value'])
@@ -242,6 +242,7 @@ class RequestObject:
         for tag in tags_remove:
             self.tags.remove(tag)
         self.additionalInformation = attr['comment']
+        self.description = "{} {}".format(event_description, attr['comment']).strip()
 
     def _handle_ip(self, attr, attr_type, graph_v4_name, graph_v6_name):
         if attr['type'] == attr_type:
