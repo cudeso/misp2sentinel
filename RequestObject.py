@@ -3,6 +3,7 @@ import config
 from constants import *
 from datetime import datetime, timedelta
 from stix2.base import STIXJSONEncoder
+from stix2.utils import STIXdatetime
 import json
 
 
@@ -138,6 +139,8 @@ class RequestObject_Indicator:
                 if config.days_to_expire_start.lower().strip() == "current_date":       # We start counting from current date
                     date_object = datetime.now() + timedelta(days=days_to_expire)
                 elif config.days_to_expire_start.lower().strip() == "valid_from":       # Start counting from valid_from
+                    if type(self.valid_from) is STIXdatetime:
+                        self.valid_from = json.dumps(self.valid_from, cls=STIXJSONEncoder).replace("\"", "")
                     date_object = datetime.fromisoformat(self.valid_from[:-1]) + timedelta(days=days_to_expire)
                 if date_object:
                     self.valid_until = date_object.strftime("%Y-%m-%dT%H:%M:%SZ")
