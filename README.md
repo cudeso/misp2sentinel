@@ -1,7 +1,6 @@
 - [MISP to Microsoft Sentinel integration](#misp-to-microsoft-sentinel-integration)
   - [Introduction](#introduction)
     - [Upload Indicators API and Graph API](#upload-indicators-api-and-graph-api)
-    - [Configuration changes](#configuration-changes)
     - [STIX instead of MISP JSON](#stix-instead-of-misp-json)
     - [Sentinel Workspaces](#sentinel-workspaces)
   - [Installation](#installation)
@@ -36,6 +35,8 @@
     - [I don't see my indicator in Sentinel](#i-dont-see-my-indicator-in-sentinel)
     - [Can I get a copy of the requests sent to Sentinel?](#can-i-get-a-copy-of-the-requests-sent-to-sentinel)
     - [Can I get a copy of the response errors returned by Sentinel?](#can-i-get-a-copy-of-the-response-errors-returned-by-sentinel)
+    - [An attribute with to\_ids to False is sent to Sentinel](#an-attribute-with-to_ids-to-false-is-sent-to-sentinel)
+    - [What are the configuration changes compared to the old Graph API version?](#what-are-the-configuration-changes-compared-to-the-old-graph-api-version)
   - [Additional documentation](#additional-documentation)
 
 # MISP to Microsoft Sentinel integration
@@ -55,27 +56,7 @@ If you were previously using the *old* integration of MISP2Sentinel via the Micr
 
 - The new integration has different dependencies, for example the Python library [misp-stix](https://github.com/MISP/misp-stix) needs to be installed;
 - Your Azure App requires permissions on your workplace;
-- There are changes in `config.py`. The most important changes are listed below, you can always have a look at [_init_configuration()](https://github.com/cudeso/misp2sentinel/blob/main/script.py#L145) for all the details.
-
-### Configuration changes
-
-| Old | New |
-|-----|-----|
-| graph_auth  | ms_auth (now requires a 'scope') |
-| targetProduct  | ms_target_product (Graph API only) |
-| action | ms_action (Graph API only) |
-| passiveOnly | ms_passiveonly (Graph API only)|
-| defaultConfidenceLevel | default_confidence |
-| | ms_api_version (Upload indicators) |
-| | ms_max_indicators_request (Upload indicators) |
-| | ms_max_requests_minute (Upload indicators) |
-| | misp_event_limit_per_page (Upload indicators) |
-| | days_to_expire_start (Upload indicators) |
-| | days_to_expire_mapping (Upload indicators) |
-| | days_to_expire_ignore_misp_last_seen (Upload indicators) |
-| | log_file (Upload indicators) |
-| | misp_remove_eventreports (Upload indicators) |
-| | sentinel_write_response (Upload indicators) |
+- There are changes in `config.py`. The most important changes are listed in the FAQ.
 
 ### STIX instead of MISP JSON
 
@@ -160,7 +141,7 @@ For a more in-depth guidance, check out the [INSTALL.MD](https://github.com/cude
 
 ### MISP
 
-You need to obtain an API key to access the MISP API. You can do this under **Global Actions**, **My Profile** and then choose **Auth keys**. Add a new key (this key can be set to read-only, the integration does not alter MISP data).
+You need an API key to access the MISP API. Create the key under **Global Actions**, **My Profile** and then choose **Auth keys**. Add a new key. The key can be set to read-only, the integration does not alter MISP data.
 
 You then need **Python3**, a Python virtual environment and PyMISP.
 
@@ -190,15 +171,15 @@ ms_auth = {
 }
 ```
 
-Next there are settings that influence the interaction with the Microsoft Sentinel APIs and set some of the defaults.
+Next there are settings that influence the interaction with the Microsoft Sentinel APIs.
 
-The settings relevant for the **Graph API** are
+The settings for the **Graph API** are
 - `ms_passiveonly = False`: Determines if the indicator should trigger an event that is visible to an end-user. 
   - When set to ‘true,’ security tools will not notify the end user that a 'hit' has occurred. This is most often treated as audit or silent mode by security products where they will simply log that a match occurred but will not perform the action. This setting no longer exists in the Upload Indicators API.
 - `ms_action = 'alert` : The action to apply if the indicator is matched from within the targetProduct security tool.
   - Possible values are: unknown, allow, block, alert. This setting no longer exists in the Upload Indicators API.
 
-The settings relevant for the **Upload Indicators API**
+The settings for the **Upload Indicators API** are
 - `ms_api_version = "2022-07-01"`: The API version. Leave this to "2022-07-01".
 - `ms_max_indicators_request = 100`: Throttling limits for the API. Maximum indicators that can be send per request. Max. 100.
 - `ms_max_requests_minute = 100`: Throttling limits for the API. Maximum requests per minute. Max. 100.
@@ -222,14 +203,14 @@ misp_domain = '<misp_url>'
 misp_verifycert = False
 ```
 
-The dictionary `misp_event_filters` then defines which filters you want to pass on to MISP. This applies to both Graph API and Uploadd Indictors API. The suggested settings are
+The dictionary `misp_event_filters` defines which filters you want to pass on to MISP. This applies to both Graph API and Upload Indictors API. The suggested settings are
 - `"published": 1`: Only include events that are published
 - `"tags": [ "workflow:state=\"complete\""]`: Only events with the workflow state 'complete'
 - `"enforceWarninglist": True`: Skip indicators that match an entry with a warninglist. This is highly recommended, but obviously also depends on if you have enable MISP warninglists.
 - `"includeEventTags": True`: Include the tags from events for additional context
 - `"publish_timestamp": "14d`: Include events published in the last 14 days
 
-There's one MISP filter commonly used that does not have an impact for this integration: **to_ids**. With MISP to_ids defines if an indicator is *actionable* or not. Unfortunately the REST API only supports the to_ids filter when querying for attributes. This integration queries for events. Does this mean that indicators with to_ids set to False are uploaded? No. In the Graph API version, only attributes with to_ids set to True are used. The Upload Indicators API relies on the MISP-STIX conversion of attributes (and objects). This conversion checks for the to_ids flag for indicators, the only exception being attributes part of an object (also see [#48](https://github.com/MISP/misp-stix/issues/48)).
+There's one MISP filter commonly used that does not have an impact for this integration: **to_ids**. In MISP `to_ids` defines if an indicator is *actionable* or not. Unfortunately the REST API only supports the to_ids filter when querying for attributes. This integration queries for events. Does this mean that indicators with to_ids set to False are uploaded? No. In the Graph API version, only attributes with to_ids set to True are used. The Upload Indicators API relies on the MISP-STIX conversion of attributes (and objects). This conversion checks for the to_ids flag for indicators, the only exception being attributes part of an object (also see [#48](https://github.com/MISP/misp-stix/issues/48)).
 
 ```
 misp_event_filters = {
@@ -559,6 +540,32 @@ When you use the **Upload Indicators API** you can print the STIX package sent t
 ### Can I get a copy of the response errors returned by Sentinel?
 
 When you use the **Upload Indicators API** you can print the errors returned by Sentinel by setting `sentinel_write_response` to True. This writes the response strings from Microsoft Sentinel that contain an "error" key to `sentinel_response.txt`.
+
+### An attribute with to_ids to False is sent to Sentinel
+
+With the Upload Indicators API the conversion to STIX2 is done with misp-stix. Unfortunately the current version does not take into account the to_ids flag set on attributes in objects. See [#48](https://github.com/MISP/misp-stix/issues/48).
+
+### What are the configuration changes compared to the old Graph API version?
+
+| Old | New |
+|-----|-----|
+| graph_auth  | ms_auth (now requires a 'scope') |
+| targetProduct  | ms_target_product (Graph API only) |
+| action | ms_action (Graph API only) |
+| passiveOnly | ms_passiveonly (Graph API only)|
+| defaultConfidenceLevel | default_confidence |
+| | ms_api_version (Upload indicators) |
+| | ms_max_indicators_request (Upload indicators) |
+| | ms_max_requests_minute (Upload indicators) |
+| | misp_event_limit_per_page (Upload indicators) |
+| | days_to_expire_start (Upload indicators) |
+| | days_to_expire_mapping (Upload indicators) |
+| | days_to_expire_ignore_misp_last_seen (Upload indicators) |
+| | log_file (Upload indicators) |
+| | misp_remove_eventreports (Upload indicators) |
+| | sentinel_write_response (Upload indicators) |
+
+Have a look at [_init_configuration()](https://github.com/cudeso/misp2sentinel/blob/main/script.py#L145) for all the details.
 
 ## Additional documentation
 
