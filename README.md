@@ -3,12 +3,15 @@
     - [Upload Indicators API and Graph API](#upload-indicators-api-and-graph-api)
     - [STIX instead of MISP JSON](#stix-instead-of-misp-json)
     - [Sentinel Workspaces](#sentinel-workspaces)
+  - [Microsoft Azure Market Place](#microsoft-azure-market-place)
   - [Installation](#installation)
     - [Azure](#azure)
       - [Azure App registration](#azure-app-registration)
       - [Threat intelligence data connector](#threat-intelligence-data-connector)
       - [Azure Function](#azure-function)
     - [MISP](#misp)
+      - [API key](#api-key)
+      - [Python environment](#python-environment)
   - [Configuration](#configuration)
     - [Microsoft settings](#microsoft-settings)
     - [MISP settings](#misp-settings)
@@ -49,10 +52,10 @@ The MISP to Microsoft Sentinel integration allows you to upload indicators from 
 
 The integration supports two methods for sending threat intelligence from MISP to Microsoft Sentinel:
 
-- Use the [Upload Indicators API](https://learn.microsoft.com/en-us/azure/sentinel/connect-threat-intelligence-upload-api), or
-- Use the Graph API. This Microsoft Graph API is [deprecated](https://learn.microsoft.com/en-us/graph/migrate-azure-ad-graph-overview) and it is recommended to use the new Upload Indicators API. To facilitate the transition period, the integration script supports both APIs.
+- The recommend [Upload Indicators API](https://learn.microsoft.com/en-us/azure/sentinel/connect-threat-intelligence-upload-api), or
+- The [deprecated](https://learn.microsoft.com/en-us/graph/migrate-azure-ad-graph-overview) Microsoft Graph API. To facilitate the transition the integration supports both APIs.
 
-If you were previously using the *old* integration of MISP2Sentinel via the Microsoft Graph API then take a moment before upgrading.
+If you were previously using the *old* version of MISP2Sentinel via the Microsoft Graph API then take a moment before upgrading.
 
 - The new integration has different dependencies, for example the Python library [misp-stix](https://github.com/MISP/misp-stix) needs to be installed;
 - Your Azure App requires permissions on your workplace;
@@ -69,6 +72,14 @@ From a functional point of view, all indicators that can be synchronised via the
 ### Sentinel Workspaces
 
 In addition to the change to STIX, the new API also supports Sentinel **Workspaces**. This means you can send indicators to just one workspace, instead of pushing them globally. Compared to the previous version of MISP2Sentinel there also has been a clean-up of the configuration settings and the integration no longer outputs to stdout, but writes its activity in a **log file**.
+
+## Microsoft Azure Market Place
+
+The [misp2sentinel](https://github.com/cudeso/misp2sentinel) solution is in the Market Place or [Microsoft Sentinel Content Hub](https://portal.azure.com/#create/microsoftsentinelcommunity.azure-sentinel-solution-misp2sentinel) with a corresponding data connector. Note that enabling the solution in Azure isn't sufficient to sync indicators. You still need to setup the *Python environment* or use the *Azure Function*.
+
+![docs/misp2sentinel.png-2](docs/misp2sentinel-2.png)
+
+![docs/misp2sentinel.png-1](docs/misp2sentinel-1.png)
 
 ## Installation
 
@@ -141,7 +152,11 @@ For a more in-depth guidance, check out the [INSTALL.MD](https://github.com/cude
 
 ### MISP
 
+#### API key
+
 You need an API key to access the MISP API. Create the key under **Global Actions**, **My Profile** and then choose **Auth keys**. Add a new key. The key can be set to read-only, the integration does not alter MISP data.
+
+#### Python environment
 
 You then need **Python3**, a Python virtual environment and PyMISP.
 
