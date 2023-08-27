@@ -3,7 +3,7 @@
     - [Upload Indicators API and Graph API](#upload-indicators-api-and-graph-api)
     - [STIX instead of MISP JSON](#stix-instead-of-misp-json)
     - [Sentinel Workspaces](#sentinel-workspaces)
-  - [Microsoft Azure Market Place](#microsoft-azure-market-place)
+    - [Microsoft Azure Market Place](#microsoft-azure-market-place)
   - [Installation](#installation)
     - [Azure](#azure)
       - [Azure App registration](#azure-app-registration)
@@ -73,7 +73,7 @@ From a functional point of view, all indicators that can be synchronised via the
 
 In addition to the change to STIX, the new API also supports Sentinel **Workspaces**. This means you can send indicators to just one workspace, instead of pushing them globally. Compared to the previous version of MISP2Sentinel there also has been a clean-up of the configuration settings and the integration no longer outputs to stdout, but writes its activity in a **log file**.
 
-## Microsoft Azure Market Place
+### Microsoft Azure Market Place
 
 The [misp2sentinel](https://github.com/cudeso/misp2sentinel) solution is in the Market Place or [Microsoft Sentinel Content Hub](https://portal.azure.com/#create/microsoftsentinelcommunity.azure-sentinel-solution-misp2sentinel) with a corresponding data connector. Note that enabling the solution in Azure isn't sufficient to sync indicators. You still need to setup the *Python environment* or use the *Azure Function*.
 
