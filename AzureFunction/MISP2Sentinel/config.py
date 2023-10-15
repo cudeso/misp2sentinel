@@ -70,7 +70,7 @@ misp_verifycert = False
 
 # MISP API settings - kv integration
 misp_key = client.get_secret('mispkey')
-misp_url = client.get_secret('mispurl') 
+misp_domain = client.get_secret('mispurl') 
 
 # MISP Event filters
 misp_event_filters = {
