@@ -84,6 +84,9 @@ def push_to_sentinel(tenant, id, secret, workspace):
     config.ms_auth[CLIENT_ID] = id
     config.ms_auth[CLIENT_SECRET] = secret
     config.ms_auth[WORKSPACE_ID] = workspace
+    logging.info(f"Tenant: {tenant}")
+    logging.info(f"Client ID: {id}")
+    logging.info(f"Workspace ID: {workspace}")
     parsed_indicators, total_indicators = _get_misp_events_stix()
     logging.info("Found {} indicators in MISP".format(total_indicators))
 
@@ -98,8 +101,8 @@ def push_to_sentinel(tenant, id, secret, workspace):
 
 def pmain():
     tenants = json.loads(os.getenv('tenants'))
-    for key, value in tenants.items():
-        push_to_sentinel(key, value['id'], value['secret'], value['workspaceid'])
+    for item in tenants:
+        push_to_sentinel(item['tenantId'], item['id'], item['secret'], item['workspaceId'])
 
 def main(mytimer: func.TimerRequest) -> None:
     utc_timestamp = datetime.utcnow().replace(
