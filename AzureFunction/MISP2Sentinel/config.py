@@ -69,8 +69,8 @@ misp_verifycert = False
 # misp_domain = mispurl
 
 # MISP API settings - kv integration
-misp_key = client.get_secret('mispkey')
-misp_domain = client.get_secret('mispurl') 
+misp_key = client.get_secret('mispkey').value
+misp_domain = client.get_secret('mispurl').value
 
 # MISP Event filters
 misp_event_filters = {
