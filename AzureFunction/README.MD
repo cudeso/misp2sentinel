@@ -40,6 +40,10 @@ Full instructions in [INSTALL.md](../docs/INSTALL.MD)
 4. Add a new secret with the name "mispkey" and the value of your MISP API key
 5. Create an Azure Function in your Azure subscription, this needs to be a Linux based Python 3.9 function.
 6. Modify config.py to your needs (event filter). 
+   * Decide if you're going to be hardcoding the variables or using the KV integration
+     * for KV integration, add a "New application setting" called kvName with the Key Vault name
+   * If hardcoding variables, uncomment - hardcoded ms, and comment out the - kv integration part - in the ENV/MICROSOFT/MISP sections of config.py
+   ![](../docs/config-img-1.png)
 7. Upload the code to your Azure Function. 
    * If you are using VSCode, this can be done by clicking the Azure Function folder and selecting "Deploy to Function App", provided you have the Azure Functions extension installed.
    * If using Powershell, you can upload the ZIP file using the following command: `Publish-AzWebapp -ResourceGroupName <resourcegroupname> -Name <functionappname> -ArchivePath <path to zip file> -Force`. If you want to make changes to the ZIP-file, simply send the contents of the `AzureFunction`-folder (minus any `.venv`-folder you might have created) to a ZIP-file and upload that.
@@ -47,7 +51,9 @@ Full instructions in [INSTALL.md](../docs/INSTALL.MD)
    * You can also use the [`WEBSITE_RUN_FROM_PACKAGE`](https://learn.microsoft.com/en-us/azure/azure-functions/functions-app-settings#website_run_from_package) configuration setting, which will allow you to upload the ZIP-file to a storage account (or Github repository) and have the Azure Function run from there. This is useful if you want to use a CI/CD pipeline to deploy the Azure Function, meaning you can just update the ZIP-file and have the Azure Function automatically update.
 8. Add a "New application setting" (env variable) to your Azure Function named `tenants`. Create a reference to the key vault previously created (`@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/tenants/)`).
 9. Do the same for the `mispkey` secret (`@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/mispkey/)`)
+   * If you are using KV integration, you don't need to do this, just make sure correct part is commented/uncommented
 10. Add a "New application setting" (env variable) called `mispurl` and add the URL to your MISP-server (`https://<mispurl>`)
+   * If you are using KV integration, you don't need to do this, just make sure correct part is commented/uncommented
 11.  Add a "New application setting" (env variable) `timerTriggerSchedule` and set it to run. If you're running against multiple tenants with a big filter, set it to run once every two hours or so. 
    * The `timerTriggerSchedule` takes a cron expression. For more information, see [Timer trigger for Azure Functions](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-timer?tabs=python-v2%2Cin-process&pivots=programming-language-python).
    * Run once every two hours cron expression: `0 */2 * * *`

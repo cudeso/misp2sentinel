@@ -1,8 +1,16 @@
 import os
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential
-mispkey=os.getenv('mispkey')
-mispurl=os.getenv('mispurl')
+
+#####################
+# ENV Section       #
+#####################
+
+# ENV - hardcoded
+# mispkey=os.getenv('mispkey')
+# mispurl=os.getenv('mispurl')
+
+# ENV - kv integration
 keyVaultName=os.getenv('kvName')
 
 ## Key vault section
@@ -53,10 +61,16 @@ ms_action = 'alert'                     # action
 # MISP Section #
 ################
 
-# MISP API settings
-misp_key = mispkey
-misp_domain = mispurl
+# MISP API settings - generic
 misp_verifycert = False
+
+# MISP API settings - hardcoded
+# misp_key = mispkey
+# misp_domain = mispurl
+
+# MISP API settings - kv integration
+misp_key = client.get_secret('mispkey')
+misp_url = client.get_secret('mispurl') 
 
 # MISP Event filters
 misp_event_filters = {
