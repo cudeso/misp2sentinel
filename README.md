@@ -40,6 +40,7 @@
     - [Can I get a copy of the response errors returned by Sentinel?](#can-i-get-a-copy-of-the-response-errors-returned-by-sentinel)
     - [An attribute with to\_ids to False is sent to Sentinel](#an-attribute-with-to_ids-to-false-is-sent-to-sentinel)
     - [What is tenant, client\_id and workspace\_id?](#what-is-tenant-client_id-and-workspace_id)
+    - [I need help with the MISP event filters](#i-need-help-with-the-misp-event-filters)
     - [What are the configuration changes compared to the old Graph API version?](#what-are-the-configuration-changes-compared-to-the-old-graph-api-version)
   - [Additional documentation](#additional-documentation)
 
@@ -566,6 +567,10 @@ With the Upload Indicators API the conversion to STIX2 is done with misp-stix. U
 - `tenant` is the Directory ID. Get get it by searching for **Tenant Properties** in Azure
 - `client_id` is Application client ID. Get it by listing the **App Registrations** in Azure and using the column Application (client) ID
 - `workspace_id` is the workspace ID. Get it by opening the Log Analytics workspace and the Workspace ID in the Essentials overview
+
+### I need help with the MISP event filters
+
+The blog post [Figuring out MISP2Sentinel Event Filters](https://www.infernux.no/MISP2Sentinel-EventFilters/) can help you defining the `misp_event_filters`. If you want to be more granular with time based filters then take a look at the MISP playbook [Using timestamps in MISP](https://github.com/MISP/misp-playbooks/blob/main/misp-playbooks/pb_using_timestamps_in_MISP-with_output.ipynb). And lastly, have a look at the different [MISP Open API specifications](https://www.misp-project.org/openapi/#tag/Events/operation/restSearchEvents) for the event search.
 
 ### What are the configuration changes compared to the old Graph API version?
 
