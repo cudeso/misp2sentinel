@@ -39,6 +39,7 @@
     - [Can I get a copy of the requests sent to Sentinel?](#can-i-get-a-copy-of-the-requests-sent-to-sentinel)
     - [Can I get a copy of the response errors returned by Sentinel?](#can-i-get-a-copy-of-the-response-errors-returned-by-sentinel)
     - [An attribute with to\_ids to False is sent to Sentinel](#an-attribute-with-to_ids-to-false-is-sent-to-sentinel)
+    - [What is tenant, client\_id and workspace\_id?](#what-is-tenant-client_id-and-workspace_id)
     - [What are the configuration changes compared to the old Graph API version?](#what-are-the-configuration-changes-compared-to-the-old-graph-api-version)
   - [Additional documentation](#additional-documentation)
 
@@ -559,6 +560,12 @@ When you use the **Upload Indicators API** you can print the errors returned by 
 ### An attribute with to_ids to False is sent to Sentinel
 
 With the Upload Indicators API the conversion to STIX2 is done with misp-stix. Unfortunately the current version does not take into account the to_ids flag set on attributes in objects. See [#48](https://github.com/MISP/misp-stix/issues/48).
+
+### What is tenant, client_id and workspace_id?
+
+- `tenant` is the Directory ID. Get get it by searching for **Tenant Properties** in Azure
+- `client_id` is Application client ID. Get it by listing the **App Registrations** in Azure and using the column Application (client) ID
+- `workspace_id` is the workspace ID. Get it by opening the Log Analytics workspace and the Workspace ID in the Essentials overview
 
 ### What are the configuration changes compared to the old Graph API version?
 

@@ -228,6 +228,8 @@ class RequestManager:
                     requests_number += 1
             else:
                 self.logger.error("Error when submitting indicators. Non HTTP-200 response. {}".format(response.text))
+                if response.status_code == 500:
+                    self.logger.error("request_body={}".format(request_body))
                 break
 
     def handle_indicator(self, indicator):

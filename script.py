@@ -109,11 +109,12 @@ def _get_misp_events_stix():
                             if misp_indicator.id:
                                 if misp_indicator.valid_until:
                                     valid_until = json.dumps(misp_indicator.valid_until, cls=STIXJSONEncoder).replace("\"", "")
-                                    # There must be a "cleaner-Python" way to deal with converting these date formats
+                                    # Strip the dots from 'valid_until' to avoid date parse errors
+                                    if "." in valid_until:
+                                        valid_until = valid_until.split(".")[0]
+                                    # There must be a "cleaner-Python" way to deal with converting these date formats                                        
                                     if "Z" in valid_until:
                                         date_object = datetime.fromisoformat(valid_until[:-1])
-                                    elif "." in valid_until:
-                                        date_object = datetime.fromisoformat(valid_until.split(".")[0])
                                     else:
                                         date_object = datetime.fromisoformat(valid_until)
                                     if date_object > datetime.now():
