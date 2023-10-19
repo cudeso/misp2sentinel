@@ -1,51 +1,20 @@
 import os
-from azure.keyvault.secrets import SecretClient
-from azure.identity import DefaultAzureCredential
-
-#####################
-# ENV Section       #
-#####################
-
-# ENV - hardcoded
-# mispkey=os.getenv('mispkey')
-# mispurl=os.getenv('mispurl')
-
-# ENV - kv integration
-keyVaultName=os.getenv('kvName')
-
-## Key vault section
-KVUri = f"https://{keyVaultName}.vault.azure.net"
-
-# Log in with the virtual machines managed identity
-credential = DefaultAzureCredential()
-client = SecretClient(vault_url=KVUri, credential=credential)
-
-# Retrieve values from KV (client secret, MISP-key most importantly)
-retrieved_clientsecret = client.get_secret('ClientSecret')
+mispkey=os.getenv('mispkey')
+mispurl=os.getenv('mispurl')
 
 #####################
 # Microsoft Section #
 #####################
 
-# MS API settings - kv integration
+# MS API settings
 ms_auth = {
     'tenant': '',
     'client_id': '',
-    'client_secret': retrieved_clientsecret.value,
+    'client_secret': '',
     'scope': 'https://management.azure.com/.default',
     'graph_api': False,
     'workspace_id': ''
 }
-
-# MS API settings - hardcoded
-# ms_auth = {
-#     'tenant': '',
-#     'client_id': '',
-#     'client_secret': ''
-#     'scope': 'https://management.azure.com/.default',
-#     'graph_api': False,
-#     'workspace_id': ''
-# }
 
 ms_max_indicators_request = 100     # Throttle max: 100 indicators per request
 ms_max_requests_minute = 100        # Throttle max: 100 requests per minute
@@ -61,16 +30,10 @@ ms_action = 'alert'                     # action
 # MISP Section #
 ################
 
-# MISP API settings - generic
+# MISP API settings
+misp_key = mispkey
+misp_domain = mispurl
 misp_verifycert = False
-
-# MISP API settings - hardcoded
-# misp_key = mispkey
-# misp_domain = mispurl
-
-# MISP API settings - kv integration
-misp_key = client.get_secret('mispkey').value
-misp_domain = client.get_secret('mispurl').value
 
 # MISP Event filters
 misp_event_filters = {
