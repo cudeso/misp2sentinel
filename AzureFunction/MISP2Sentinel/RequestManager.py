@@ -72,11 +72,16 @@ class RequestManager:
             CLIENT_SECRET: client_secret,
             'grant_type': 'client_credentials'
         }
-        access_token = requests.post(
-            f'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
-            data=data
-        ).json()[ACCESS_TOKEN]
-        return access_token
+        try:
+            access_token = requests.post(
+                f'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
+                data=data
+            ).json()[ACCESS_TOKEN]
+            return access_token
+        except requests.exceptions.RequestException as err:
+            logging.error(f"Failed to get access token with: Tenant: {tenant} | ClientId: {client_id} | Scope: {scope} | Err: {err}")
+        except Exception as e:
+            logging.error(f"An unexpected error occurred: {e}")
 
     @staticmethod
     def read_tiindicators():

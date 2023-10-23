@@ -1,15 +1,10 @@
 asn1crypto
 attrs
-azure-functions
+azure-keyvault-secrets
 azure-identity
-awscli==1.16.20
-botocore==1.12.10
 certifi
-cffi
-chardet
 charset-normalizer
 colorama
-cryptography
 Deprecated
 distlib
 filelock
@@ -17,7 +12,6 @@ idna
 importlib-resources
 jmespath
 jsonschema
-lxml
 misp-stix
 pipenv
 platformdirs
