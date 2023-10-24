@@ -70,8 +70,20 @@ The format of the key value makes it possible for the Azure Function to write Th
 For pushing to multiple Sentinel instances, you would format the secret as such:
 
 ```json
-{"<TENANT_ID1>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspaceid": "<WORKSPACE_ID>"}, "<TENANT_IDn>": {"id": "<APP_ID>", "secret": "<APP_SECRET>", "workspaceid": "<WORKSPACE_ID>"}}
-```
+[
+   { 
+      "tenantId": "<TENANT_ID_WITH_APP_1>",
+      "id": "<APP_ID>",
+      "secret": "<APP_SECRET>",
+      "workspaceId": "<WORKSPACE_ID>"
+   },
+   {
+      "tenantId": "<TENANT_ID_WITH_APP_N>",
+      "id": "<APP_ID>",
+      "secret": "<APP_SECRET_N>",
+      "workspaceId": "<WORKSPACE_ID_N>"
+   }
+]```
 
 > **NOTE**: The solution currently does not support pushing to multiple workspaces within the same tenant, as the tenant id is used as the key in the dictionary.
 
