@@ -28,7 +28,7 @@ Full instructions in [INSTALL.md](../docs/INSTALL.MD)
       "id": "<APP_ID>",
       "secret": "<APP_SECRET>",
       "workspaceId": "<WORKSPACE_ID>"
-   }
+   },
    {
       "tenantId": "<TENANT_ID_WITH_APP_N>",
       "id": "<APP_ID>",
