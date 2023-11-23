@@ -231,18 +231,20 @@ class RequestManager:
         status_code = response.status_code
         result = {}
         switcher = {
-            429: lambda: self.handle_rate_limit_exceeded(response, safe_margin),
+            429: lambda: self.handle_rate_limit_exceeded(response, safe_margin, parsed_indicators),
             200: lambda: self.handle_success_response(response, request_body, parsed_indicators, requests_number),
         }
         result = switcher.get(status_code, lambda: self.handle_error_response(response))()
         self.logger.debug(result)
         return result
 
-    def handle_rate_limit_exceeded(self, response, safe_margin):
+    def handle_rate_limit_exceeded(self, response, safe_margin, parsed_indicators):
         error_message = response.json()["message"]
         retry_after = int(error_message.split()[-2])
         self.logger.warning(f"Rate limit exceeded. Retrying after {retry_after} seconds.")
         time.sleep(retry_after + safe_margin)
+        # Retry the request - go back one entry in the list (which had the error)
+        self.parsed_indicators = parsed_indicators[config.ms_max_indicators_request-1:]
         return {"retry": True, "breakRun": False}
 
     def handle_success_response(self, response, request_body, parsed_indicators, requests_number):
@@ -254,7 +256,7 @@ class RequestManager:
             self.logger.error("Error when submitting indicators - error string received from Sentinel. {}".format(response.text))
             return {"retry": False, "breakRun": True}
         else:
-            parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
+            self.parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
             self.logger.info(
                 "Indicators sent - request number: {} / indicators: {} / remaining: {}".format(requests_number, len(request_body["value"]),len(parsed_indicators)))
             return {"retry": False, "breakRun": False}
