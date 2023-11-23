@@ -234,7 +234,7 @@ class RequestManager:
             429: lambda: self.handle_rate_limit_exceeded(response, safe_margin),
             200: lambda: self.handle_success_response(response, request_body, parsed_indicators, requests_number),
         }
-        switcher.get(status_code, lambda: self.handle_error_response(response))()
+        result = switcher.get(status_code, lambda: self.handle_error_response(response))()
         self.logger.debug(result)
         return result
 
