@@ -207,7 +207,6 @@ class RequestManager:
                     time.sleep(sleep_time)
                 requests_number = 0
                 start_timestamp = self._get_timestamp()
-
             self._update_headers_if_expired()
             workspace_id = config.ms_auth["workspace_id"]
             api_version = config.ms_api_version
@@ -225,6 +224,8 @@ class RequestManager:
                 # If breakRun is true, break out of the loop
                 if result.get("breakRun", True):
                     break
+                parsed_indicators = result.get("parsed_indicators", parsed_indicators)
+                parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
 
     def handle_response_codes(self, response, safe_margin, requests_number, request_body, parsed_indicators):
         self.logger.debug(response)
@@ -244,9 +245,8 @@ class RequestManager:
         self.logger.warning(f"Rate limit exceeded. Retrying after {retry_after} seconds.")
         time.sleep(retry_after + safe_margin)
         # Retry the request - go back one entry in the list (which had the error)
-        self.parsed_indicators = parsed_indicators[config.ms_max_indicators_request-1:]
-        return {"retry": True, "breakRun": False}
-
+        parsed_indicators = parsed_indicators[config.ms_max_indicators_request-1:]
+        return {"retry": True, "breakRun": False, "parsed_indicators": parsed_indicators}
     def handle_success_response(self, response, request_body, parsed_indicators, requests_number):
         if "errors" in response.json() and len(response.json()["errors"]) > 0:
             if config.sentinel_write_response:
@@ -256,10 +256,10 @@ class RequestManager:
             self.logger.error("Error when submitting indicators - error string received from Sentinel. {}".format(response.text))
             return {"retry": False, "breakRun": True}
         else:
-            self.parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
+            parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
             self.logger.info(
-                "Indicators sent - request number: {} / indicators: {} / remaining: {}".format(requests_number, len(request_body["value"]),len(parsed_indicators)))
-            return {"retry": False, "breakRun": False}
+                "Indicators sent - request number: {} / indicators: {} / remaining: {}".format(requests_number, len(request_body["value"]), len(parsed_indicators)))
+            return {"retry": False, "breakRun": False, "parsed_indicators": parsed_indicators}
 
     def handle_error_response(self, response):
         self.logger.error("Error when submitting indicators. Non HTTP-200 response. {}".format(response.text))
