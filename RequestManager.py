@@ -224,8 +224,8 @@ class RequestManager:
                 # If breakRun is true, break out of the loop
                 if result.get("breakRun", True):
                     break
+                # Update parsed_indicators with the remaining indicators
                 parsed_indicators = result.get("parsed_indicators", parsed_indicators)
-                parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
 
     def handle_response_codes(self, response, safe_margin, requests_number, request_body, parsed_indicators):
         self.logger.debug(response)
