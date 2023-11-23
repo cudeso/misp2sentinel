@@ -218,9 +218,10 @@ class RequestManager:
 
             while result.get("retry", True):
                 response = requests.post(request_url, headers=self.headers, json=request_body)
-                requests_number += 1
                 result = self.handle_response_codes(response, safe_margin, requests_number, request_body, parsed_indicators)
-                # If retry is true, retry the request
+                # If retry is true, retry the request, otherwise continue to the next indicator
+                if result.get("retry", False):
+                    requests_number += 1
                 # If breakRun is true, break out of the loop
                 if result.get("breakRun", True):
                     break
