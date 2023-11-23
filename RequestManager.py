@@ -227,13 +227,14 @@ class RequestManager:
                     break
 
     def handle_response_codes(self, response, safe_margin, requests_number, request_body, parsed_indicators):
+        self.logger.debug(response)
         status_code = response.status_code
         result = {}
         switcher = {
             429: lambda: self.handle_rate_limit_exceeded(response, safe_margin),
             200: lambda: self.handle_success_response(response, request_body, parsed_indicators, requests_number),
         }
-        switcher.get(status_code, lambda: self.handle_error_response(response))(result)
+        switcher.get(status_code, lambda: self.handle_error_response(response))()
         self.logger.debug(result)
         return result
 
