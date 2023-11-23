@@ -213,24 +213,43 @@ class RequestManager:
             api_version = config.ms_api_version
             request_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api-version={api_version}"
             request_body = {"sourcesystem": "MISP", "value": parsed_indicators[:config.ms_max_indicators_request]}
-            response = requests.post(request_url, headers=self.headers, json=request_body)
-            if response.status_code == 200:
-                if "errors" in response.json() and len(response.json()["errors"]) > 0:
-                    if config.sentinel_write_response:
-                        json_formatted_str = json.dumps(response.json(), indent=4)
-                        with open("sentinel_response.txt", "a") as fp:
-                            fp.write(json_formatted_str)                    
-                    self.logger.error("Error when submitting indicators - error string received from Sentinel. {}".format(response.text))
+
+            # Setting result retry as true to enter the loop
+            result = {"retry": True, "breakRun": False}
+
+            while result["retry"]:
+                response = requests.post(request_url, headers=self.headers, json=request_body)
+                result = self.handle_response_codes(response, safe_margin, requests_number, request_body, parsed_indicators)
+                # If retry is true, retry the request
+                # If breakRun is true, break out of the loop
+                if result["breakRun"]:
                     break
-                else:
-                    parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
-                    self.logger.info("Indicators sent - request number: {} / indicators: {} / remaining: {}".format(requests_number, len(request_body["value"]), len(parsed_indicators)))
-                    requests_number += 1
+
+    def handle_response_codes(self, response, safe_margin, requests_number, request_body, parsed_indicators): 
+        if response.status_code == 429:
+            error_message = response.json()["error"]["message"]
+            retry_after = int(error_message.split()[-2])
+            self.logger.warning(f"Rate limit exceeded. Retrying after {retry_after} seconds.")
+            time.sleep(retry_after+safe_margin)
+            result = {"retry": True, "breakRun": False}
+            return result
+        if response.status_code == 200:
+            if "errors" in response.json() and len(response.json()["errors"]) > 0:
+                if config.sentinel_write_response:
+                    json_formatted_str = json.dumps(response.json(), indent=4)
+                    with open("sentinel_response.txt", "a") as fp:
+                        fp.write(json_formatted_str)                    
+                self.logger.error("Error when submitting indicators - error string received from Sentinel. {}".format(response.text))
+                result = {"retry": False, "breakRun": True}
+                return result
             else:
-                self.logger.error("Error when submitting indicators. Non HTTP-200 response. {}".format(response.text))
-                if response.status_code == 500:
-                    self.logger.error("request_body={}".format(request_body))
-                break
+                parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
+                self.logger.info("Indicators sent - request number: {} / indicators: {} / remaining: {}".format(requests_number, len(request_body["value"]), len(parsed_indicators)))
+                result = {"retry": False, "breakRun": False}
+                requests_number += 1
+        else:
+            self.logger.error("Error when submitting indicators. Non HTTP-200 response. {}".format(response.text))
+
 
     def handle_indicator(self, indicator):
         self._update_headers_if_expired()
