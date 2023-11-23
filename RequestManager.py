@@ -227,7 +227,7 @@ class RequestManager:
 
     def handle_response_codes(self, response, safe_margin, requests_number, request_body, parsed_indicators): 
         if response.status_code == 429:
-            error_message = response.json()["error"]["message"]
+            error_message = response.json()["message"]
             retry_after = int(error_message.split()[-2])
             self.logger.warning(f"Rate limit exceeded. Retrying after {retry_after} seconds.")
             time.sleep(retry_after+safe_margin)
