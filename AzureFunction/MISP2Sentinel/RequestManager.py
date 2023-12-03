@@ -214,25 +214,64 @@ class RequestManager:
                     time.sleep(sleep_time)
                 requests_number = 0
                 start_timestamp = self._get_timestamp()
-
             self._update_headers_if_expired()
             workspace_id = config.ms_auth["workspace_id"]
             api_version = config.ms_api_version
             request_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api-version={api_version}"
             request_body = {"sourcesystem": "MISP", "value": parsed_indicators[:config.ms_max_indicators_request]}
-            response = requests.post(request_url, headers=self.headers, json=request_body)
-            if response.status_code == 200:
-                if "errors" in response.json() and len(response.json()["errors"]) > 0:
-                    logging.error("Error when submitting indicators. {}".format(response.text))
-                    break
-                else:
-                    logging.info("Indicators sent - request number: {} / indicators: {}".format(requests_number, len(request_body["value"])))
-                    parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
-                    requests_number += 1
-            else:
-                logging.error("Error when submitting indicators. {}".format(response.text))
-                break
 
+            # Setting result retry as true to enter the loop
+            result = {"retry": True, "breakRun": False}
+
+            while result.get("retry", True):
+                response = requests.post(request_url, headers=self.headers, json=request_body)
+                result = self.handle_response_codes(response, safe_margin, requests_number, request_body, parsed_indicators)
+                # If retry is true, retry the request, otherwise continue to the next indicator
+                if result.get("retry", False):
+                    requests_number += 1
+                # If breakRun is true, break out of the loop
+                if result.get("breakRun", True):
+                    break
+                # Update parsed_indicators with the remaining indicators
+                parsed_indicators = result.get("parsed_indicators", parsed_indicators)
+
+    def handle_response_codes(self, response, safe_margin, requests_number, request_body, parsed_indicators):
+        logging.debug(response)
+        status_code = response.status_code
+        result = {}
+        switcher = {
+            429: lambda: self.handle_rate_limit_exceeded(response, safe_margin, parsed_indicators),
+            200: lambda: self.handle_success_response(response, request_body, parsed_indicators, requests_number),
+        }
+        result = switcher.get(status_code, lambda: self.handle_error_response(response))()
+        logging.debug(result)
+        return result
+
+    def handle_rate_limit_exceeded(self, response, safe_margin, parsed_indicators):
+        error_message = response.json()["message"]
+        retry_after = int(error_message.split()[-2])
+        logging.warning(f"Rate limit exceeded. Retrying after {retry_after} seconds.")
+        time.sleep(retry_after + safe_margin)
+        # Retry the request - go back one entry in the list (which had the error)
+        parsed_indicators = parsed_indicators[config.ms_max_indicators_request-1:]
+        return {"retry": True, "breakRun": False, "parsed_indicators": parsed_indicators}
+    def handle_success_response(self, response, request_body, parsed_indicators, requests_number):
+        if "errors" in response.json() and len(response.json()["errors"]) > 0:
+            if config.sentinel_write_response:
+                json_formatted_str = json.dumps(response.json(), indent=4)
+                with open("sentinel_response.txt", "a") as fp:
+                    fp.write(json_formatted_str)
+            logging.error("Error when submitting indicators - error string received from Sentinel. {}".format(response.text))
+            return {"retry": False, "breakRun": True}
+        else:
+            parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
+            logging.info(
+                "Indicators sent - request number: {} / indicators: {} / remaining: {}".format(requests_number, len(request_body["value"]), len(parsed_indicators)))
+            return {"retry": False, "breakRun": False, "parsed_indicators": parsed_indicators}
+
+    def handle_error_response(self, response):
+        logging.error("Error when submitting indicators. Non HTTP-200 response. {}".format(response.text))
+        return {"retry": False, "breakRun": True}
     def handle_indicator(self, indicator):
         self._update_headers_if_expired()
         indicator[EXPIRATION_DATE_TIME] = self.expiration_date
