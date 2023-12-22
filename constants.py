@@ -131,6 +131,7 @@ OPTIONAL_GRAPH_METADATA = frozenset([
 ])
 
 MISP_TAGS_IGNORE = ["misp-galaxy:", "Threat-Report", "misp:tool=\"MISP-STIX-Converter\"", "misp:to_ids=\"True\"", "misp:to_ids=\"False\"", "misp:category=", "misp:name=", "misp:meta-category=", "misp:category=", "misp:type="]
+MISP_ALLOWED_TAXONOMIES = [] # empty list for all taxonomies ["tlp", "admiralty-scale", "type"]
 MISP_CONFIDENCE = {"prefix": "misp:confidence-level", "matches": {"completely-confident": 100, "confidence-cannot-be-evalued": 50, "fairly-confident": 50, "rarely-confident": 25, "unconfident": 0, "usually-confident": 75}}
 MISP_ANALYSIS = {0: "Initial", 1: "Ongoing", 2: "Completed"}
 MISP_THREATLEVEL = {1: "Low", 2: "Medium" , 3: "High", 4: "Unknown"}
