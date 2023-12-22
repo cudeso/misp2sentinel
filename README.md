@@ -36,12 +36,14 @@
     - [Detailed workflow for Upload Indicators API](#detailed-workflow-for-upload-indicators-api)
   - [FAQ](#faq)
     - [I don't see my indicator in Sentinel](#i-dont-see-my-indicator-in-sentinel)
+    - [I don't see my indicator in Sentinel (2)](#i-dont-see-my-indicator-in-sentinel-2)
     - [Can I get a copy of the requests sent to Sentinel?](#can-i-get-a-copy-of-the-requests-sent-to-sentinel)
     - [Can I get a copy of the response errors returned by Sentinel?](#can-i-get-a-copy-of-the-response-errors-returned-by-sentinel)
     - [An attribute with to\_ids to False is sent to Sentinel](#an-attribute-with-to_ids-to-false-is-sent-to-sentinel)
     - [What is tenant, client\_id and workspace\_id?](#what-is-tenant-client_id-and-workspace_id)
     - [I need help with the MISP event filters](#i-need-help-with-the-misp-event-filters)
     - [What are the configuration changes compared to the old Graph API version?](#what-are-the-configuration-changes-compared-to-the-old-graph-api-version)
+    - [I want to limit which tags get synchronised to Sentinel](#i-want-to-limit-which-tags-get-synchronised-to-sentinel)
   - [Additional documentation](#additional-documentation)
 
 # MISP to Microsoft Sentinel integration
@@ -563,6 +565,29 @@ The integration workflow is as follows:
 - Is the to_ids flag set to True?
 - Is the indicator stored in a valid attribute type (`UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES`)?
 
+### I don't see my indicator in Sentinel (2)
+
+If you are using the new Upload Indicators API then the integration with Sentinel relies on [https://github.com/MISP/misp-stix](https://github.com/MISP/misp-stix). The MISP attributes and objects are transformed to STIX objects. After that, only the `indicators` (defined in `UPLOAD_INDICATOR_API_ACCEPTED_TYPES`) are synchronised with Sentinel. As a consequence, if the conversion by MISP-STIX does not translate MISP attributes or objects to STIX objects, then the value does not get synchronised with Sentinel.
+
+Almost all MISP objects are translated, but there can be situations were the MISP object is not recognised. It is then translated to `x-misp-object` and not to an `indicator` STIX object. Elements from `x-misp-object` are not synchronised. If you run into this situation then open an issue with [https://github.com/MISP/misp-stix](https://github.com/MISP/misp-stix). Examples in the past include the [hashlookup object](https://github.com/MISP/misp-stix/issues/56).
+
+This little Python snippet can help you find out if elements are correctly translated. Adjust `misp_event_filters` to query only for the event with a non-default object.
+
+```
+misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
+misp_page = 1
+config.misp_event_limit_per_page = 100
+result = misp.search(controller='events', return_format='json', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
+misp_event=result[0]
+parser = MISPtoSTIX21Parser()
+parser.parse_misp_event(misp_event)
+stix_objects = parser.stix_objects
+for el in stix_objects:
+    print(el.type)
+    if el.type == 'indicator':
+        print(el)
+```
+ 
 ### Can I get a copy of the requests sent to Sentinel?
 
 When you use the **Upload Indicators API** you can print the STIX package sent to Microsoft Sentinel by setting `write_parsed_indicators` to True. This writes all packages to `parsed_indicators.txt`. This file is overwritten at each execution of the script.
@@ -606,6 +631,13 @@ The blog post [Figuring out MISP2Sentinel Event Filters](https://www.infernux.no
 | | sentinel_write_response (Upload indicators) |
 
 Have a look at [_init_configuration()](https://github.com/cudeso/misp2sentinel/blob/main/script.py#L145) for all the details.
+
+### I want to limit which tags get synchronised to Sentinel
+
+You can control the list of tags that get synchronised with variables in the `constants.py` file.
+
+- **MISP_TAGS_IGNORE** : A list of **tags to ignore**. This list now contains the default tags that are set automatically as "labels" during the conversion by MISP to STIX. You can add your own list here.
+- **MISP_ALLOWED_TAXONOMIES** : The list of **allowed taxonomies**. This means that if a tag is not part of the taxonomy (technically, if it does not start with `taxonomy:`), then it is ignored. If you leave the value empty then all taxonomies / tags are included. For example use `["tlp", "admiralty-scale", "type"]`
 
 ## Additional documentation
 

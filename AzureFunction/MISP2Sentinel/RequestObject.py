@@ -154,6 +154,14 @@ class RequestObject_Indicator:
             for tag in MISP_TAGS_IGNORE:
                 if tag.strip().lower() in label.strip().lower():
                     ignore = True
+            if not ignore: # We can also do this the other way around, end result remains the same
+                if 'MISP_ALLOWED_TAXONOMIES' in globals() and len(MISP_ALLOWED_TAXONOMIES) > 0: # check if someone did not update the constants file
+                    matches_allowed_taxonomy = False
+                    for taxonomy in MISP_ALLOWED_TAXONOMIES:
+                        if "{}:".format(taxonomy).strip().lower() in label.strip().lower():
+                            matches_allowed_taxonomy = True
+                    if not matches_allowed_taxonomy:
+                        ignore = True                    
             if not ignore:
                 new_labels.append(label)
         self.labels = new_labels

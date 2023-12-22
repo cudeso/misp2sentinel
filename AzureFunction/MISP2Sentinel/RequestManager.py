@@ -255,6 +255,7 @@ class RequestManager:
         # Retry the request - go back one entry in the list (which had the error)
         parsed_indicators = parsed_indicators[config.ms_max_indicators_request-1:]
         return {"retry": True, "breakRun": False, "parsed_indicators": parsed_indicators}
+    
     def handle_success_response(self, response, request_body, parsed_indicators, requests_number):
         if "errors" in response.json() and len(response.json()["errors"]) > 0:
             if config.sentinel_write_response:
@@ -272,6 +273,7 @@ class RequestManager:
     def handle_error_response(self, response):
         logging.error("Error when submitting indicators. Non HTTP-200 response. {}".format(response.text))
         return {"retry": False, "breakRun": True}
+    
     def handle_indicator(self, indicator):
         self._update_headers_if_expired()
         indicator[EXPIRATION_DATE_TIME] = self.expiration_date
