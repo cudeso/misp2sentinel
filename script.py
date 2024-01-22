@@ -133,7 +133,7 @@ def _get_misp_events_stix():
             else:
                 remaining_misp_pages = False
 
-        except exceptions.MISPServerError:
+        except exceptions.MISPServerError as e::
             remaining_misp_pages = False
             logger.error("Error received from the MISP server {}".format(e))
         except Exception as e:
