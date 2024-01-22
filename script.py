@@ -253,7 +253,15 @@ def main():
         total_indicators = sum([len(v['request_objects']) for v in parsed_events])
     else:
         logger.info("Using Microsoft Upload Indicator API")
-        parsed_indicators, total_indicators = _get_misp_events_stix()
+        global parsed_indicators_cache
+        global total_indicators_cache
+        if parsed_indicators_cache is None and total_indicators_cache is None:
+            logger.info("Fetching indicators from MISP")
+            parsed_indicators_cache, total_indicators_cache = _get_misp_events_stix()
+        else:
+            logger.info("Using cached indicators from earlier call to MISP")
+
+        parsed_indicators, total_indicators = parsed_indicators_cache, total_indicators_cache
         logger.info("Received {} indicators in MISP".format(total_indicators))
 
     with RequestManager(total_indicators, logger) as request_manager:
