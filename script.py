@@ -135,10 +135,10 @@ def _get_misp_events_stix():
 
         except exceptions.MISPServerError as e:
             remaining_misp_pages = False
-            logger.error("Error received from the MISP server {}".format(e))
+            logger.error("Error received from the MISP server {} - {} - {}".format(e, sys.exc_info()[2].tb_lineno, sys.exc_info()[1]))
         except Exception as e:
             remaining_misp_pages = False
-            logger.error("Error when processing data from MISP {}".format(e))
+            logger.error("Error when processing data from MISP {} - {} - {}".format(e, sys.exc_info()[2].tb_lineno, sys.exc_info()[1]))
 
     return result_set, len(result_set)
 
