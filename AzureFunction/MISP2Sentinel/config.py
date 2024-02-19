@@ -2,7 +2,7 @@ import os
 mispkey=os.getenv('mispkey')
 mispurl=os.getenv('mispurl')
 
-local_mode=os.getenv('local_mode')
+local_mode=os.getenv('local_mode', 'False')
 
 #####################
 # Microsoft Section #
