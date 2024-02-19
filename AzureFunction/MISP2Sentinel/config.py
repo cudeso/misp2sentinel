@@ -37,7 +37,7 @@ misp_key = mispkey
 misp_domain = mispurl
 misp_verifycert = False
 
-if(not local_mode):
+if(not bool(local_mode)):
     misp_verifycert = True
 
 # MISP Event filters
