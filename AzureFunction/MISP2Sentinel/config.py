@@ -2,6 +2,8 @@ import os
 mispkey=os.getenv('mispkey')
 mispurl=os.getenv('mispurl')
 
+local_mode=os.getenv('local_mode')
+
 #####################
 # Microsoft Section #
 #####################
@@ -34,6 +36,9 @@ ms_action = 'alert'                     # action
 misp_key = mispkey
 misp_domain = mispurl
 misp_verifycert = False
+
+if(not local_mode):
+    misp_verifycert = True
 
 # MISP Event filters
 misp_event_filters = {
