@@ -279,7 +279,8 @@ from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential
 
 # Key vault section
-keyVaultName = "misp-keys"
+# Key Vault name must be a globally unique DNS name
+keyVaultName = "<unique-name>"
 KVUri = f"https://{keyVaultName}.vault.azure.net"
 
 # Log in with the virtual machines managed identity
