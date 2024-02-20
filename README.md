@@ -232,7 +232,7 @@ Set `misp_key` to your MISP API key and `misp_domain` to the URL of your MISP se
 ```
 misp_key = '<misp_api_key>'
 misp_domain = '<misp_url>'
-misp_verifycert = False (by default this is False, however this is determined by an environment variable set "local_mode", see see config.py
+misp_verifycert = False (by default this is False, however this is determined by an environment variable set "local_mode", see config.py
 ```
 
 The dictionary `misp_event_filters` defines which filters you want to pass on to MISP. This applies to both Graph API and Upload Indictors API. The suggested settings are
