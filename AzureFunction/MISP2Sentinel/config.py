@@ -43,6 +43,7 @@ if not len(keyVaultName) == 0:
     mispkey = retrieved_mispkey.value
     ms_auth['client_secret'] = retrieved_clientsecret
 
+print('key_vault_name env variable not set, falling back to env variable for config values....')
 mispkey=os.getenv('mispkey')
 
 #####################
