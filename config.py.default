@@ -50,7 +50,7 @@ misp_verifycert = False
 misp_event_filters = {
     "published": 1,
     "tags": [ "workflow:state=\"complete\""],
-    "enforceWarninglist": True,
+    #"enforceWarninglist": True,
     "includeEventTags": True,
     "publish_timestamp": "14d",
 }
@@ -60,7 +60,7 @@ misp_event_limit_per_page = 100     # Upload Indicators API: Limit memory use wh
 ####
 # Integration settings
 
-ignore_localtags = True             # Graph API only
+ignore_localtags = True             
 network_ignore_direction = True     # Graph API only
 
 default_confidence = 50             # Sentinel default confidence level of indicator
@@ -77,5 +77,7 @@ days_to_expire_mapping = {          # Upload indicators API only. Mapping for ex
 log_file = "/tmp/misp2sentinel.log"
 write_post_json = False             # Graph API only
 verbose_log = False
-write_parsed_indicators = False      # Upload Indicators only
+write_parsed_indicators = False     # Upload Indicators only
+write_parsed_eventid = False
 
+misp_flatten_attributes = True      # Convert all attributes in objects to "atomic" attributes. This can help when attributes are not "mapped" in misp-stix

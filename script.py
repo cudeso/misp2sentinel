@@ -94,7 +94,7 @@ def _get_misp_events_stix():
             if len(result) > 0:
                 logger.info("Received MISP events page {} with {} events".format(misp_page, len(result)))
                 for event in result:
-                    misp_event = RequestObject_Event(event["Event"], logger)
+                    misp_event = RequestObject_Event(event["Event"], logger, config.misp_flatten_attributes)
                     try:
                         parser = MISPtoSTIX21Parser()
                         parser.parse_misp_event(misp_event.event)
@@ -102,6 +102,8 @@ def _get_misp_events_stix():
                     except Exception as e:
                         logger.error("Error when processing data in event {} from MISP {}. Most likely a MISP-STIX conversion problem.".format(misp_event.id, e))
                         continue
+                    if config.write_parsed_eventid:
+                        logger.info("Processing event {} {}".format(event["Event"]["id"], event["Event"]["info"]))
                     for element in stix_objects:
                         if element.type in UPLOAD_INDICATOR_API_ACCEPTED_TYPES and \
                                         element.id not in misp_indicator_ids:
@@ -183,6 +185,10 @@ def _init_configuration():
         config.misp_remove_eventreports = True
     if not hasattr(config, "sentinel_write_response"):
         config.sentinel_write_response = False
+    if not hasattr(config, "write_parsed_eventid"):
+        config.write_parsed_eventid = False
+    if not hasattr(config, "misp_flatten_attributes"):
+        config.misp_flatten_attributes = False
 
     return use_old_config
 

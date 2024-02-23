@@ -37,6 +37,7 @@
   - [FAQ](#faq)
     - [I don't see my indicator in Sentinel](#i-dont-see-my-indicator-in-sentinel)
     - [I don't see my indicator in Sentinel (2)](#i-dont-see-my-indicator-in-sentinel-2)
+    - [I want to ignore the x-misp-object and synchronise all attribute](#i-want-to-ignore-the-x-misp-object-and-synchronise-all-attribute)
     - [Can I get a copy of the requests sent to Sentinel?](#can-i-get-a-copy-of-the-requests-sent-to-sentinel)
     - [Can I get a copy of the response errors returned by Sentinel?](#can-i-get-a-copy-of-the-response-errors-returned-by-sentinel)
     - [An attribute with to\_ids to False is sent to Sentinel](#an-attribute-with-to_ids-to-false-is-sent-to-sentinel)
@@ -44,6 +45,8 @@
     - [I need help with the MISP event filters](#i-need-help-with-the-misp-event-filters)
     - [What are the configuration changes compared to the old Graph API version?](#what-are-the-configuration-changes-compared-to-the-old-graph-api-version)
     - [I want to limit which tags get synchronised to Sentinel](#i-want-to-limit-which-tags-get-synchronised-to-sentinel)
+    - [Error: KeyError: 'access\_token'](#error-keyerror-access_token)
+    - [Error: Unable to process indicator. Invalid indicator type or invalid valid\_until date.](#error-unable-to-process-indicator-invalid-indicator-type-or-invalid-valid_until-date)
   - [Additional documentation](#additional-documentation)
 
 # MISP to Microsoft Sentinel integration
@@ -99,16 +102,25 @@ You need to register a new **application** in the Microsoft [Application Registr
 4. From the overview page of your app note the **Application ID** (client) and **Directory ID** (tenant). You will need it later to complete the configuration.
 5. Under **Certificates & secrets** (in the left pane), choose **New client secret** and add a description. A new secret will be displayed in the **Value** column. Copy this password. You will need it later to complete the configuration and it will not be shown again.
 
-As a next step, you need to grant the **necessary permissions**. For the Graph API do the following:
+As a next step, you need to grant the **necessary permissions**. 
 
-6. Under **API permissions** (left pane), choose **Add a permission > Microsoft Graph**.
-7. Under **Application Permissions**, add **ThreatIndicators.ReadWrite.OwnedBy**.
-8. Then grant **consent** for the new permissions via **Grant admin consent for Standaardmap** (*Standaardmap* is replaced with your local tenant setting). Without the consent the application will not have sufficient permissions.
+For the Graph API:
 
-If you plan on using the Upload Indicators API then additionally apply these steps:
+1. Under **API permissions** (left pane), choose **Add a permission > Microsoft Graph**.
+2. Under **Application Permissions**, add **ThreatIndicators.ReadWrite.OwnedBy**.
+3. Then grant **consent** for the new permissions via **Grant admin consent for Standaardmap** (*Standaardmap* is replaced with your local tenant setting). Without the consent the application will not have sufficient permissions.
 
-9.  Grant the Azure App **Microsoft Sentinel Contributor** permissions for the workspaces you want to connect to. Do this by accessing the workspace, then choose **Access Control (IAM)** and choose Role Assignments. Then click **Add** to add the missing the role. 
-10. Also take note of the **Workspace ID**. You can get this ID by accessing the Overview page of the workspace.
+If you plan on using the Upload Indicators API then grant the Azure App **Microsoft Sentinel Contributor** permissions for the workspaces you want to connect to. 
+
+6.	Select **Access control (IAM)**.
+7.	Select **Add** > **Add role assignment**.
+8.	In the **Role** tab, select the **Microsoft Sentinel Contributor** role > **Next**.
+9.	On the Members tab, select Assign access to > User, group, or service principal.
+10.	**Select members**. By default, Microsoft Entra applications aren't displayed in the available options. To find your application, search for it by name
+11. Then select **Review + assign**.
+12. Also take note of the **Workspace ID**. You can get this ID by accessing the Overview page of the workspace.
+
+![docs/misp2sentinel-workspaceroles.png](docs/misp2sentinel-workspaceroles.png)
 
 #### Threat intelligence data connector
 
@@ -116,15 +128,15 @@ After the registration of the app it's time to add a **data connector**.
 
 For the Graph API:
 
-1. Go to the Sentinel workspace.
+1. Go to the **Sentinel** service.
 1. Under **Configuration**, **Data connectors** search for **Threat Intelligence Platforms (Preview)**. Open the connection pane and click connect.
 
 For the Upload Indicators API:
 
-1. Go to the Sentinel workspace.
-2. Under **Configuration**, click on **Data connectors** 
-3. Select **Content hub**
-4. Find and select the **Threat Intelligence** solution using the list view.
+1. Go to the **Sentinel** service.
+2. Choose the **workspace** where you want to import the indicators from MISP.
+3. Under **Content management**, click on **Content hub** 
+4. Find and select the **MISP2Sentinel** solution using the list view
 5. Select the **Install/Update** button.
 
 #### Azure Function
@@ -171,7 +183,9 @@ For a more in-depth guidance, check out the [INSTALL.MD](https://github.com/cude
 
 #### API key
 
-You need an API key to access the MISP API. Create the key under **Global Actions**, **My Profile** and then choose **Auth keys**. Add a new key. The key can be set to read-only, the integration does not alter MISP data.
+The MISP2Sentinel integrations requires access to the MISP REST API and you need an API key to access it. 
+
+Create the key under **Global Actions**, **My Profile** and then choose **Auth keys**. Add a new key. The key can be set to *read-only* as the integration does not alter MISP data.
 
 #### Python environment
 
@@ -311,11 +325,11 @@ The remainder of the settings deal with how the integration is handled.
 
 These settings only apply for the Graph API:
 
-- `ignore_localtags = True `: When converting tags from MISP to Sentinel, ignore the MISP local tags.
+- `ignore_localtags = True `: When converting tags from MISP to Sentinel, ignore the MISP local tags (this applies to tags on event and attribute level).
 - `network_ignore_direction = True`: When set to true, not only store the indicator in the "Source/Destination" field of Sentinel (`networkDestinationIPv4, networkDestinationIPv6 or networkSourceIPv4, networkSourceIPv6`), also map in the fields without network context (`networkIPv4,networkIPv6`).
 
 ```
-ignore_localtags = True             # Graph API only
+ignore_localtags = True             
 network_ignore_direction = True     # Graph API only
 ```
 
@@ -434,7 +448,7 @@ The Graph API translates the MISP attributes **threat-actor** to Sentinel proper
 
 #### Ignored types
 
-Only indicaotrs of type `stix` are used, as such the attributes of type `yara` or `sigma` are not synchronised.
+Only indicators of type `stix` are used, as such the attributes of type `yara` or `sigma` are not synchronised.
 
 #### Expiration date
 
@@ -570,7 +584,7 @@ The integration workflow is as follows:
 
 If you are using the new Upload Indicators API then the integration with Sentinel relies on [https://github.com/MISP/misp-stix](https://github.com/MISP/misp-stix). The MISP attributes and objects are transformed to STIX objects. After that, only the `indicators` (defined in `UPLOAD_INDICATOR_API_ACCEPTED_TYPES`) are synchronised with Sentinel. As a consequence, if the conversion by MISP-STIX does not translate MISP attributes or objects to STIX objects, then the value does not get synchronised with Sentinel.
 
-Almost all MISP objects are translated, but there can be situations were the MISP object is not recognised. It is then translated to `x-misp-object` and not to an `indicator` STIX object. Elements from `x-misp-object` are not synchronised. If you run into this situation then open an issue with [https://github.com/MISP/misp-stix](https://github.com/MISP/misp-stix). Examples in the past include the [hashlookup object](https://github.com/MISP/misp-stix/issues/56).
+Almost all MISP objects are translated, but there can be situations where the MISP object is not recognised. It is then translated to `x-misp-object` and not to an `indicator` STIX object. Elements from `x-misp-object` are not synchronised. If you run into this situation then open an issue with [https://github.com/MISP/misp-stix](https://github.com/MISP/misp-stix). Examples in the past include the [hashlookup object](https://github.com/MISP/misp-stix/issues/56).
 
 This little Python snippet can help you find out if elements are correctly translated. Adjust `misp_event_filters` to query only for the event with a non-default object.
 
@@ -589,6 +603,10 @@ for el in stix_objects:
         print(el)
 ```
  
+### I want to ignore the x-misp-object and synchronise all attribute
+
+ When the option `misp_flatten_attributes` is set to **True**, the script extracts all attributes that are part of MISP objects and adds them as “atomic” attributes. You lose some contextual information (although the integration adds a comment to the attribute that it used to be part of an object) when you set this to True, but you are then sure that all attributes that can be translated to indicators in STIX are synchronised.
+
 ### Can I get a copy of the requests sent to Sentinel?
 
 When you use the **Upload Indicators API** you can print the STIX package sent to Microsoft Sentinel by setting `write_parsed_indicators` to True. This writes all packages to `parsed_indicators.txt`. This file is overwritten at each execution of the script.
@@ -639,6 +657,14 @@ You can control the list of tags that get synchronised with variables in the `co
 
 - **MISP_TAGS_IGNORE** : A list of **tags to ignore**. This list now contains the default tags that are set automatically as "labels" during the conversion by MISP to STIX. You can add your own list here.
 - **MISP_ALLOWED_TAXONOMIES** : The list of **allowed taxonomies**. This means that if a tag is not part of the taxonomy (technically, if it does not start with `taxonomy:`), then it is ignored. If you leave the value empty then all taxonomies / tags are included. For example use `["tlp", "admiralty-scale", "type"]`
+
+### Error: KeyError: 'access_token'
+
+This error occurs when the client_id, tenant, client_secret or workspace_id are invalid. Check the values in the Azure App.
+
+### Error: Unable to process indicator. Invalid indicator type or invalid valid_until date.
+
+If the error is followed with the message `Ignoring non STIX pattern type yara` then this means that there’s an indicator type that’s not accepted by Sentinel, in this case **yara**.
 
 ## Additional documentation
 

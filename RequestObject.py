@@ -33,7 +33,6 @@ class RequestObject_Indicator:
         return dict
 
     def __init__(self, element, misp_event, logger):
-
         self.misp_event = misp_event
         self.logger = logger
 
@@ -76,27 +75,45 @@ class RequestObject_Indicator:
 
             for label in self.labels:
                 label = label.strip()
-                if "misp:type=" in label:
-                    misp_type = label.split("=")[1].strip('"')
-                    if misp_type not in UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES:
-                        logger.debug("Skipping type {}".format(misp_type))
-                        break
-                elif MISP_CONFIDENCE["prefix"] in label.lower():
-                    confidence_tag = label.lower().split("{}=".format(MISP_CONFIDENCE["prefix"]))[1].replace("\"", "")
-                    for confidence in MISP_CONFIDENCE["matches"]:
-                        if confidence == confidence_tag:
-                            self.confidence = MISP_CONFIDENCE["matches"][confidence]
-                elif "sentinel-threattype" in label:
-                    sentinel_threattype = label.split("sentinel-threattype:")[1].strip()
-                    if sentinel_threattype not in self.indicator_types:
-                        self.indicator_types.append(sentinel_threattype)
-                elif 'kill-chain:' in label:
-                    kill_chain = label.split(':')[1]
-                    if KILL_CHAIN_MARKING_OBJECT_DEFINITION.get(kill_chain):
-                        filtered_kill_chain_phases.append({"kill_chain_name": "lockheed-martin-cyber-kill-chain", "phase_name": kill_chain})
-                        self.object_marking_refs.append(KILL_CHAIN_MARKING_OBJECT_DEFINITION[kill_chain])
-                else:
-                    filtered_labels.append(label)
+                ignore_tag = False
+                if config.ignore_localtags:
+                    # Not ideal for speed; but we don't have the "local" status of the tag
+                    for lookup_attribute in self.misp_event.event["Attribute"]:
+                        if "indicator--{}".format(lookup_attribute["uuid"]) == element.id:
+                            for tag in lookup_attribute.get("Tag", []):
+                                if tag["name"].strip() == label and tag["local"] == 1:
+                                    ignore_tag = True
+                                    break
+                    for lookup_object in self.misp_event.event["Object"]:
+                        for lookup_attribute in lookup_object:
+                            if "indicator--{}".format(lookup_attribute["uuid"]) == element.id:
+                                for tag in lookup_attribute.get("Tag", []):
+                                    if tag["name"].strip() == label and tag["local"] == 1:
+                                        ignore_tag = True
+                                        break
+
+                if not ignore_tag:
+                    if "misp:type=" in label:
+                        misp_type = label.split("=")[1].strip('"')
+                        if misp_type not in UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES:
+                            logger.debug("Skipping type {}".format(misp_type))
+                            break
+                    elif MISP_CONFIDENCE["prefix"] in label.lower():
+                        confidence_tag = label.lower().split("{}=".format(MISP_CONFIDENCE["prefix"]))[1].replace("\"", "")
+                        for confidence in MISP_CONFIDENCE["matches"]:
+                            if confidence == confidence_tag:
+                                self.confidence = MISP_CONFIDENCE["matches"][confidence]
+                    elif "sentinel-threattype" in label:
+                        sentinel_threattype = label.split("sentinel-threattype:")[1].strip()
+                        if sentinel_threattype not in self.indicator_types:
+                            self.indicator_types.append(sentinel_threattype)
+                    elif 'kill-chain:' in label:
+                        kill_chain = label.split(':')[1]
+                        if KILL_CHAIN_MARKING_OBJECT_DEFINITION.get(kill_chain):
+                            filtered_kill_chain_phases.append({"kill_chain_name": "lockheed-martin-cyber-kill-chain", "phase_name": kill_chain})
+                            self.object_marking_refs.append(KILL_CHAIN_MARKING_OBJECT_DEFINITION[kill_chain])
+                    else:
+                        filtered_labels.append(label)
             self.labels = filtered_labels
 
             if not sentinel_threattype:
@@ -174,8 +191,25 @@ class RequestObject_Indicator:
 
 
 class RequestObject_Event:
-    def __init__(self, event, logger):
-        self.event = event
+    def __init__(self, event, logger, misp_flatten_attributes=False):
+        if misp_flatten_attributes:
+            object_attributes = []
+            for misp_object in event["Object"]:
+                for object_attribute in misp_object["Attribute"]:
+                    if len(object_attribute["comment"].strip()) > 0:
+                        comment = "{} (was part of {} object)".format(object_attribute["comment"], misp_object["name"])
+                    else:
+                        comment = "(was part of {} object)".format(misp_object["name"])
+                    object_attribute["comment"] = comment
+                    object_attributes.append(object_attribute)
+            event_attributes = object_attributes + event["Attribute"]
+            event["Attribute"] = event_attributes
+            event["Object"] = []
+            self.event = event
+            self.flatten_attributes = event_attributes
+        else:
+            self.event = event
+            self.flatten_attributes = []
         self.labels = []
         self.sentinel_threattype = False
         self.tlp = SENTINEL_DEFAULT_TLP
@@ -185,6 +219,10 @@ class RequestObject_Event:
                 self.event["EventReport"] = []
 
         for label in event.get("Tag", []):
+            # Ignore local tags
+            if config.ignore_localtags and label["local"] == 1:
+                continue
+
             label = label["name"].strip()
             if "tlp:" in label.lower() and label.lower() in TLP_MARKING_OBJECT_DEFINITION:
                 self.tlp = label
