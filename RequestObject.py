@@ -85,7 +85,7 @@ class RequestObject_Indicator:
                                     ignore_tag = True
                                     break
                     for lookup_object in self.misp_event.event["Object"]:
-                        for lookup_attribute in lookup_object:
+                        for lookup_attribute in lookup_object["Attribute"]:
                             if "indicator--{}".format(lookup_attribute["uuid"]) == element.id:
                                 for tag in lookup_attribute.get("Tag", []):
                                     if tag["name"].strip() == label and tag["local"] == 1:
