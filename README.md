@@ -185,7 +185,15 @@ You then need **Python3**, a Python virtual environment and PyMISP.
 
 ## Configuration
 
-The configuration is in `config.py`. 
+The configuration is handled in the `config.py` file.
+
+By default the config.py will look to use Azure Key Vault if configured, if you set a **"key_vault_name"** value in your environment variables, to the name of the Azure Key Vault you have deployed, this will be the default store for all secret and configuration values.
+
+If you do not set the above value, the config.py will then fall-back to using environment variables and lastly, values directly written inside of the config.py file.
+
+[Guidance for assigning a Management Service Indeitity to Function App](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp)
+
+[Assigning your function app permissions to Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/assign-access-policy?tabs=azure-portal) - **NOTE** - you only need to assign "Secret GET" permission to your function app Management Service Identity.
 
 ### Microsoft settings
 
