@@ -25,7 +25,7 @@ ms_auth = {
 }
 
 ## If Azure Key Vault name variable is set, use it for secret values
-if not len(keyVaultName) == 0:
+if not keyVaultName == '':
     # Key vault section
     # Key Vault name must be a globally unique DNS name
     
@@ -41,10 +41,10 @@ if not len(keyVaultName) == 0:
     
     # Set values with 
     mispkey = retrieved_mispkey.value
-    ms_auth['client_secret'] = retrieved_clientsecret
-
-print('key_vault_name env variable not set, falling back to env variable for config values....')
-mispkey=os.getenv('mispkey')
+    ms_auth['client_secret'] = retrieved_clientsecret.value
+else:
+    print('key_vault_name env variable not set, falling back to env variable for config values....')
+    mispkey=os.getenv('mispkey')
 
 #####################
 # Microsoft Section #
