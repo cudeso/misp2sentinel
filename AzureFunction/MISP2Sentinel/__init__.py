@@ -22,6 +22,7 @@ if config.misp_verifycert is False:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def _get_misp_events_stix():
+    logging.info(f"Using the following values for MISP API call: domain: {config.misp_domain}, misp API key: {config.misp_key[:-5] + '*' + '*' + '*' + '*' + '*'}...")
     misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
     result_set = []
     logging.debug("Query MISP for events.")
@@ -87,6 +88,8 @@ def push_to_sentinel(tenant, id, secret, workspace):
     logging.info(f"Tenant: {tenant}")
     logging.info(f"Client ID: {id}")
     logging.info(f"Workspace ID: {workspace}")
+    obfuscated_secret = secret[:-5] + '*' + '*' + '*' + '*' + '*'
+    logging.info(f"Client Secret (obfuscated): {obfuscated_secret}")
     parsed_indicators, total_indicators = _get_misp_events_stix()
     logging.info("Found {} indicators in MISP".format(total_indicators))
 
@@ -100,9 +103,19 @@ def push_to_sentinel(tenant, id, secret, workspace):
                 fp.write(json_formatted_str)
 
 def pmain():
-    tenants = json.loads(os.getenv('tenants'))
-    for item in tenants:
-        push_to_sentinel(item['tenantId'], item['id'], item['secret'], item['workspaceId'])
+    ## Multi-tenant mode
+    tenants_env = os.getenv('tenants', '')
+    if not tenants_env == '':
+        tenants = json.loads(tenants_env)
+        for item in tenants:
+            push_to_sentinel(item['tenantId'], item['id'], item['secret'], item['workspaceId'])
+    
+    # Single-tenant mode
+    tenant = config.ms_auth[TENANT]
+    id = config.ms_auth[CLIENT_ID]
+    secret = config.ms_auth[CLIENT_SECRET]
+    workspace = config.ms_auth[WORKSPACE_ID]
+    push_to_sentinel(tenant, id, secret, workspace)
 
 def main(mytimer: func.TimerRequest) -> None:
     utc_timestamp = datetime.utcnow().replace(
@@ -115,3 +128,4 @@ def main(mytimer: func.TimerRequest) -> None:
     pmain()
     logging.info("End MISP2Sentinel")
     logging.info('Python timer trigger function ran at %s', utc_timestamp)
+
