@@ -14,6 +14,13 @@ workspace_id=os.getenv('workspace_id', '')
 client_id=os.getenv('client_id', '')
 client_secret=os.getenv('client_secret', '')
 
+'''
+We determine if an Managed Service Identity (MSI) is enabled and in use
+If in-use, then we use the MSI for auth against Key Vault and against the target Log Analytics Workspace (Sentinel)
+''' 
+msi_enabled=os.getenv('msi_enabled', 'False')
+credential = DefaultAzureCredential()
+
 # MS API settings
 ms_auth = {
     'tenant': tenant_id,
@@ -30,14 +37,19 @@ if not keyVaultName == '':
     # Key Vault name must be a globally unique DNS name
     
     KVUri = f"https://{keyVaultName}.vault.azure.net"
+    kv_client = SecretClient(vault_url=KVUri, credential=credential)
     
     # Log in with the virtual machines managed identity
     credential = DefaultAzureCredential()
     client = SecretClient(vault_url=KVUri, credential=credential)
-    
+    # Retrieve values from KV (client secret, MISP-key most importantly)
+    retrieved_mispkey = kv_client.get_secret('MISP-Key')
     # Retrieve values from KV (client secret, MISP-key most importantly)
     retrieved_mispkey = client.get_secret('MISP-Key')
     retrieved_clientsecret = client.get_secret('ClientSecret')
+    if not bool(msi_enabled):
+        retrieved_clientsecret = kv_client.get_secret('ClientSecret')
+        ms_auth['client_secret'] = retrieved_clientsecret.value
     
     # Set values with 
     mispkey = retrieved_mispkey.value
