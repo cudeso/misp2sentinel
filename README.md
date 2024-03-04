@@ -141,43 +141,11 @@ For the Upload Indicators API:
 
 #### Azure Function
 
-**Please note**: This step is optional and replaces the need for running the solution directly on the MISP-server itself, instead chosing to run the script in an Azure Function.
+**Please note**: This step is optional and replaces the need for running the solution directly on the MISP-server itself, instead electing to run the script in an Azure Function.
 
-1. Create an app registration in the same Microsoft tenant where the Sentinel instance resides. The app requires Microsoft Sentinel Contributor assigned on the workspace.
-2. Create a Keyvault in your Azure subscription
-3. Add a new secret with the name "tenants" and the following value (its possible to add multiple Sentinel instances, it will loop all occurences):
-```json
-[
-    {
-      "tenantId": "<TENANT_ID_WITH_APP_1>",
-      "id": "<APP_ID>",
-      "secret": "<APP_SECRET>",
-      "workspaceId": "<WORKSPACE_ID>"
-    },
-    {
-      "tenantId": "<TENANT_ID_WITH_APP_N>",
-      "id": "<APP_ID>",
-      "secret": "<APP_SECRET_N>",
-      "workspaceId": "<WORKSPACE_ID_N>"
-    }
-]
-```
-4. Add a new secret with the name "mispkey" and the value of your MISP API key
-5. Create an Azure Function in your Azure subscription, this needs to be a Linux based Python 3.9 function.
-6. Modify config.py to your needs (event filter). 
-7. Upload the code to your Azure Function. 
-   * If you are using VSCode, this can be done by clicking the Azure Function folder and selecting "Deploy to Function App", provided you have the Azure Functions extension installed.
-   * If using Powershell, you can upload the ZIP file using the following command: `Publish-AzWebapp -ResourceGroupName <resourcegroupname> -Name <functionappname> -ArchivePath <path to zip file> -Force`. If you want to make changes to the ZIP-file, simply send the contents of the `AzureFunction`-folder (minus any `.venv`-folder you might have created) to a ZIP-file and upload that.
-   * If using AZ CLI, you can upload the ZIP file using the following command: `az functionapp deployment source config-zip --resource-group <resourcegroupname> --name <functionappname> --src <path to zip file>`.
-   * You can also use the [`WEBSITE_RUN_FROM_PACKAGE`](https://learn.microsoft.com/en-us/azure/azure-functions/functions-app-settings#website_run_from_package) configuration setting, which will allow you to upload the ZIP-file to a storage account (or Github repository) and have the Azure Function run from there. This is useful if you want to use a CI/CD pipeline to deploy the Azure Function, meaning you can just update the ZIP-file and have the Azure Function automatically update.
-8. Add a "New application setting" (env variable) to your Azure Function named `tenants`. Create a reference to the key vault previously created (`@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/tenants/)`).
-9. Do the same for the `mispkey` secret (`@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/mispkey/)`)
-10. Add a "New application setting" (env variable) called `mispurl` and add the URL to your MISP-server (`https://<mispurl>`)
-11. Add a "New application setting" (env variable) `timerTriggerSchedule` and set it to run. If you're running against multiple tenants with a big filter, set it to run once every two hours or so. 
-   * The `timerTriggerSchedule` takes a cron expression. For more information, see [Timer trigger for Azure Functions](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-timer?tabs=python-v2%2Cin-process&pivots=programming-language-python).
-   * Run once every two hours cron expression: `0 */2 * * *`
+Please see specific Azure Function [README.MD](https://github.com/cudeso/misp2sentinel/blob/main/AzureFunction/README.MD) for specific Azure Function configurations and settings.
 
-For a more in-depth guidance, check out the [INSTALL.MD](https://github.com/cudeso/misp2sentinel/blob/main/docs/INSTALL.MD) guidance, or read [Use Update Indicators API to push Threat Intelligence from MISP to Microsoft Sentinel](https://www.infernux.no/MicrosoftSentinel-MISP2SentinelUpdate/).
+For in-depth guidance, check out the [INSTALL.MD](https://github.com/cudeso/misp2sentinel/blob/main/docs/INSTALL.MD) guidance, or read [Use Update Indicators API to push Threat Intelligence from MISP to Microsoft Sentinel](https://www.infernux.no/MicrosoftSentinel-MISP2SentinelUpdate/).
 
 ### MISP
 
@@ -205,7 +173,7 @@ By default the config.py will look to use Azure Key Vault if configured, if you 
 
 If you do not set the above value, the config.py will then fall-back to using environment variables and lastly, values directly written inside of the config.py file.
 
-[Guidance for assigning a Management Service Indeitity to Function App](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp)
+[Guidance for assigning a Management Service Identity to Function App](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp)
 
 [Assigning your function app permissions to Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/assign-access-policy?tabs=azure-portal) - **NOTE** - you only need to assign "Secret GET" permission to your function app Management Service Identity.
 
@@ -282,8 +250,9 @@ There's one additional setting for the Upload Indicators API and that's `misp_ev
 
 ### Azure Key Vault integration (only works on Azure VMs)
 
-To avoid having secrets in cleartext saved, you can integrate with an Azure Key Vault.
-1. Enable a managed identity for the virtual machine
+To avoid having secrets in clear-text saved, you can integrate with an Azure Key Vault. This also negates having to provision a separate Azure Identity to handle interacting with Azure Key Vault and persisting Threat Indicators from MISP. See the [Azure Function README](https://github.com/cudeso/misp2sentinel/blob/main/AzureFunction/README.MD) for more specific Azure Managed Service Identity (MSI) guidance.
+
+1. Enable a managed identity for the virtual machine/Azure Function App
 2. Create an Azure Key Vault
 3. Create the secrets `MISP-Key` and `ClientSecret` in the secrets tab
 4. Give the virtual machine managed identity access to the `Reader` role on the Azure Key Vault
@@ -295,23 +264,27 @@ To avoid having secrets in cleartext saved, you can integrate with an Azure Key 
 The rest of the configuration is done in `config.py`:
 
 ```python
-# Code for supporting storage of secrets in key vault (only works for VMs running on Azure)
-import os
-from azure.keyvault.secrets import SecretClient
-from azure.identity import DefaultAzureCredential
+# Code for supporting storage of secrets in Azure Key Vault
+## If Azure Key Vault name variable is set, use it for secret values
+if not keyVaultName == '':
 
-# Key vault section
-# Key Vault name must be a globally unique DNS name
-keyVaultName = "<unique-name>"
-KVUri = f"https://{keyVaultName}.vault.azure.net"
+    # Key vault section
+    # Key Vault name must be a globally unique DNS name
+    KVUri = f"https://{keyVaultName}.vault.azure.net"
+    kv_client = SecretClient(vault_url=KVUri, credential=credential)
+    
+    # Retrieve values from KV (client secret, MISP-key most importantly)
+    retrieved_mispkey = kv_client.get_secret('MISP-Key')
 
-# Log in with the virtual machines managed identity
-credential = DefaultAzureCredential()
-client = SecretClient(vault_url=KVUri, credential=credential)
-
-# Retrieve values from KV (client secret, MISP-key most importantly)
-retrieved_mispkey = client.get_secret('MISP-Key')
-retrieved_clientsecret = client.get_secret('ClientSecret')
+    if not bool(msi_enabled):
+        retrieved_clientsecret = kv_client.get_secret('ClientSecret')
+        ms_auth['client_secret'] = retrieved_clientsecret.value
+    
+    # Set values with 
+    mispkey = retrieved_mispkey.value
+else:
+    print('key_vault_name env variable not set, falling back to env variable for config values....')
+    mispkey=os.getenv('mispkey')
 ```
 
 1. Firstly, uncomment the lines in `config.py` so it matches the above
