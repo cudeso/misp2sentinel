@@ -66,6 +66,10 @@ class RequestManager:
 
     @staticmethod
     def _get_access_token(tenant, client_id, client_secret, scope):
+        
+        if bool(config.msi_enabled):
+            return config.credential.get_token("https://management.azure.com/.default").token
+        
         data = {
             CLIENT_ID: client_id,
             'scope': scope,
