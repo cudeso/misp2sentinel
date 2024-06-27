@@ -1,5 +1,4 @@
 from pymisp import PyMISP
-from pymisp import ExpandedPyMISP
 import MISP2Sentinel.config as config
 from collections import defaultdict
 from MISP2Sentinel.RequestManager import RequestManager
@@ -23,7 +22,7 @@ if config.misp_verifycert is False:
 
 def _get_misp_events_stix():
     logging.info(f"Using the following values for MISP API call: domain: {config.misp_domain}, misp API key: {config.misp_key[:-5] + '*' + '*' + '*' + '*' + '*'}...")
-    misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
+    misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
     result_set = []
     logging.debug("Query MISP for events.")
     remaining_misp_pages = True
