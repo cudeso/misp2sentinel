@@ -597,7 +597,7 @@ Almost all MISP objects are translated, but there can be situations where the MI
 This little Python snippet can help you find out if elements are correctly translated. Adjust `misp_event_filters` to query only for the event with a non-default object.
 
 ```
-misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
+misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
 misp_page = 1
 config.misp_event_limit_per_page = 100
 result = misp.search(controller='events', return_format='json', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)

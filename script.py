@@ -20,7 +20,7 @@ if config.misp_verifycert is False:
 
 
 def _get_events():
-    misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert)
+    misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert)
     if len(config.misp_event_filters) == 0:
         return [event['Event'] for event in misp.search(controller='events', return_format='json')]
     events_for_each_filter = [
@@ -76,7 +76,7 @@ def _handle_tlp_level(parsed_event):
 
 
 def _get_misp_events_stix():
-    misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
+    misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
     result_set = []
     logger.debug("Query MISP for events.")
     remaining_misp_pages = True
