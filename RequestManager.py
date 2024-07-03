@@ -7,7 +7,7 @@ import copy
 import hashlib
 from constants import *
 import time
-
+import sys
 
 class RequestManager:
     """A class that handles submitting TiIndicators to MS Graph Security API
@@ -63,22 +63,30 @@ class RequestManager:
     def _get_expiration_date_from_config():
         return (datetime.datetime.utcnow() + datetime.timedelta(config.days_to_expire)).strftime('%Y-%m-%d')
 
-    @staticmethod
-    def _get_access_token(tenant, client_id, client_secret, scope):
+    def _get_access_token(self, tenant, client_id, client_secret, scope):
         data = {
             CLIENT_ID: client_id,
             'scope': scope,
             CLIENT_SECRET: client_secret,
             'grant_type': 'client_credentials'
         }
-        access_token = requests.post(
+
+        access_token_response = requests.post(
             f'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
             data=data
-        ).json()[ACCESS_TOKEN]
-        return access_token
+        ).json()
 
-    @staticmethod
-    def read_tiindicators():
+        if ACCESS_TOKEN in access_token_response:
+            access_token = access_token_response[ACCESS_TOKEN]
+            return access_token
+        elif "error" in access_token_response:
+            self.logger.error("Exiting. Error: {}".format(access_token_response["error_description"]))
+            sys.exit("Exiting. Error: {}".format(access_token_response["error_description"]))        
+        else:
+            self.logger.error("Exiting. No access token {} found.".format(ACCESS_TOKEN))
+            sys.exit("Exiting. No access token {} found.".format(ACCESS_TOKEN))
+
+    def read_tiindicators(self):
         access_token = RequestManager._get_access_token(
             config.ms_auth[TENANT],
             config.ms_auth[CLIENT_ID],
@@ -211,7 +219,7 @@ class RequestManager:
             workspace_id = config.ms_auth["workspace_id"]
             api_version = config.ms_api_version
             request_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api-version={api_version}"
-            request_body = {"sourcesystem": "MISP", "value": parsed_indicators[:config.ms_max_indicators_request]}
+            request_body = {"sourcesystem": config.sourcesystem, "value": parsed_indicators[:config.ms_max_indicators_request]}
 
             # Setting result retry as true to enter the loop
             result = {"retry": True, "breakRun": False}

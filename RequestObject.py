@@ -239,8 +239,9 @@ class RequestObject_Event:
         self.threat_level_id = MISP_THREATLEVEL[int(event["threat_level_id"])]
         self.analysis = MISP_ANALYSIS[int(event["analysis"])]
         self.distribution = event["distribution"]
+        self.eventdate = event["date"]
         self.org = event["Org"]["name"].strip()
-        self.name = "{} ({}-{}) by {}".format(self.info, self.id, self.uuid, self.org)
+        self.name = "{} ({}-{}) by {} on {}".format(self.info, self.id, self.uuid, self.org, self.eventdate)
 
 
 class RequestObject:

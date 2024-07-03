@@ -189,6 +189,8 @@ def _init_configuration():
         config.write_parsed_eventid = False
     if not hasattr(config, "misp_flatten_attributes"):
         config.misp_flatten_attributes = False
+    if not hasattr(config, "sourcesystem"):
+        config.sourcesystem = "MISP"
 
     return use_old_config
 
