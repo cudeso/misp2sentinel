@@ -83,7 +83,8 @@ For pushing to multiple Sentinel instances, you would format the secret as such:
       "secret": "<APP_SECRET_N>",
       "workspaceId": "<WORKSPACE_ID_N>"
    }
-]```
+]
+```
 
 > **NOTE**: The solution currently does not support pushing to multiple workspaces within the same tenant, as the tenant id is used as the key in the dictionary.
 
