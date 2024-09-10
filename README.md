@@ -47,6 +47,7 @@
     - [I want to limit which tags get synchronised to Sentinel](#i-want-to-limit-which-tags-get-synchronised-to-sentinel)
     - [Error: KeyError: 'access\_token'](#error-keyerror-access_token)
     - [Error: Unable to process indicator. Invalid indicator type or invalid valid\_until date.](#error-unable-to-process-indicator-invalid-indicator-type-or-invalid-valid_until-date)
+    - [Which URLs should I whitelist?](#which-urls-should-i-whitelist)
   - [Additional documentation](#additional-documentation)
 
 # MISP to Microsoft Sentinel integration
@@ -390,6 +391,10 @@ verbose_log = False
 write_parsed_indicators = False      # Upload Indicators only
 ```
 
+**Whitelisted URLS**
+
+The list of URLs which need to be whitelisted are summarised under [Which URLs should I whitelist?](#which-urls-should-i-whitelist)
+
 ## Setup 
 
 ### Cron job
@@ -673,6 +678,18 @@ This error occurs when the client_id, tenant, client_secret or workspace_id are 
 ### Error: Unable to process indicator. Invalid indicator type or invalid valid_until date.
 
 If the error is followed with the message `Ignoring non STIX pattern type yara` then this means that there’s an indicator type that’s not accepted by Sentinel, in this case **yara**.
+
+### Which URLs should I whitelist?
+
+The MISP2Sentinel requires access to a number of web resources.
+
+- MISP
+  - HTTPS access to your MISP server, either via localhost (127.0.0.1) or from remote
+- HTTPS access to these Azure resources
+  - sentinelus.azure-api.net
+  - login.microsoftonline.com
+  - graph.microsoft.com/.default
+  - management.azure.com
 
 ## Additional documentation
 
