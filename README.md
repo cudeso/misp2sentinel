@@ -265,6 +265,8 @@ The dictionary `misp_event_filters` defines which filters you want to pass on to
 - `"includeEventTags": True`: Include the tags from events for additional context
 - `"publish_timestamp": "14d`: Include events published in the last 14 days
 
+Although it might be tempting to keep `publish_timestamp` to 14 days, it's better to only use the 14 (or higher) days for the initial run. Afterwards set the publish_timestamp to a value that's equal to the frequency you synchronise with Sentinel. Meaning, if you sync every 12 hours, set the publish_timestamp to 12h. It has no additional value to search for older events, as these have already been published previously.
+
 There's one MISP filter commonly used that does not have an impact for this integration: **to_ids**. In MISP `to_ids` defines if an indicator is *actionable* or not. Unfortunately the REST API only supports the to_ids filter when querying for attributes. This integration queries for events. Does this mean that indicators with to_ids set to False are uploaded? No. In the Graph API version, only attributes with to_ids set to True are used. The Upload Indicators API relies on the MISP-STIX conversion of attributes (and objects). This conversion checks for the to_ids flag for indicators, the only exception being attributes part of an object (also see [#48](https://github.com/MISP/misp-stix/issues/48)).
 
 ```
@@ -359,8 +361,10 @@ These settings apply to both the Graph API and Upload Indicators API.
 
 - `days_to_expire = 50`: The default number of days after which an indictor in Sentinel will expire. 
 
-For the Graph API the date is calculated based on the timestamp when the script is executed. The expiration of indicators works slightly different for the Upload Indicators API. There are two additional settings that apply for this API:
-- `days_to_expire_start = "current_date"`: Define if you want to start counting the "expiration" date (defined in `days_to_expire`) from the current date (by using the value `current_date`) or from the value specified by MISP with `valid_from`.
+For the Graph API the date is calculated based on the timestamp when the script is executed. 
+
+The expiration of indicators works slightly different for the Upload Indicators API. There are two additional settings that apply for this API:
+- `days_to_expire_start`: Define if you want to start counting the "expiration" date (defined in `days_to_expire`) from the current date (with `current_date`) or from the value specified by MISP (with `valid_from`).
 - `days_to_expire_mapping`: Is a dictionary mapping specific expiration dates for indicators (STIX patterns). The numerical value is in days. This value overrides `days_to_expire`.
 
 ```
@@ -374,7 +378,16 @@ days_to_expire_mapping = {          # Upload indicators API only. Mapping for ex
                 }
 ```
 
-In MISP you can set the *first seen* and *last seen* value of attributes. In the MISP-STIX conversion, this last seen value is translated to *valid_until*. This valid_until influences the expiration date of the indicator. If the expiration date (calculated with the above values) is after the current date, then it is ignored. In some cases it can be useful to ignore the last seen value set in MISP, and just use your own calculations of the expiration date. You can do this with `days_to_expire_ignore_misp_last_seen`. This ignores the last seen value, and calculates expiration date based on `days_to_expire` (and _mapping).
+In MISP you can set the *first seen* and *last seen* of attributes. In the MISP-STIX conversion, last seen is translated to *valid_until*. This valid_until influences the expiration date of the indicator. If the expiration date (calculated with the above values) is after the current date, then it is ignored. In some cases it can be useful to ignore the last seen value set in MISP, and just use your own calculations of the expiration date. You can do this with `days_to_expire_ignore_misp_last_seen`. This ignores the last seen value, and calculates expiration date based on `days_to_expire` (and _mapping).
+
+In summary. 
+- If valid_until is set in MISP
+	- Set expire to valid_until
+- Else
+  - If days_to_expire_start == current_date
+  	- Set expire to "now" + days from either days_to_expire or days_to_expire_mapping
+  - If days_to_expire_start == valid_from
+  	- Set expire to MISP valid _ from + days from either days_to_expire or days_to_expire_mapping
 
 **Script output**
 

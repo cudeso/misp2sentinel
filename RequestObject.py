@@ -240,7 +240,7 @@ class RequestObject_Event:
         self.analysis = MISP_ANALYSIS[int(event["analysis"])]
         self.distribution = event["distribution"]
         self.eventdate = event["date"]
-        self.org = event["Org"]["name"].strip()
+        self.org = event["Orgc"]["name"].strip()
         self.name = "{} ({}-{}) by {} on {}".format(self.info, self.id, self.uuid, self.org, self.eventdate)
 
 

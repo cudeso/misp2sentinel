@@ -68,11 +68,12 @@ default_confidence = 50             # Sentinel default confidence level of indic
 days_to_expire = 50                 # Graph API and Upload Indicators
 days_to_expire_start = "current_date" # Upload Indicators API only. Start counting from "valid_from" | "current_date" ; 
 days_to_expire_mapping = {          # Upload indicators API only. Mapping for expiration of specific indicator types
-                    "ipv4-addr": 150,
-                    "ipv6-addr": 150,
-                    "domain-name": 300,
-                    "url": 400,
+                    "ipv4-addr": 180,
+                    "ipv6-addr": 180,
+                    "domain-name": 180,
+                    "url": 365,
                 }
+                                    # Don't set an expiration date for files ('file')
 
 log_file = "/tmp/misp2sentinel.log"
 write_post_json = False             # Graph API only

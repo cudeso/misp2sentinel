@@ -87,7 +87,7 @@ def _get_misp_events_stix():
         try:
             if "limit" in config.misp_event_filters:
                 result = misp.search(controller='events', return_format='json', **config.misp_event_filters)
-                remaining_misp_pages = False # Limits are set in the misp_event_filters 
+                remaining_misp_pages = False # Limits are set in the misp_event_filters
             else:
                 result = misp.search(controller='events', return_format='json', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
 
@@ -114,7 +114,7 @@ def _get_misp_events_stix():
                                     # Strip the dots from 'valid_until' to avoid date parse errors
                                     if "." in valid_until:
                                         valid_until = valid_until.split(".")[0]
-                                    # There must be a "cleaner-Python" way to deal with converting these date formats                                        
+                                    # There must be a "cleaner-Python" way to deal with converting these date formats
                                     if "Z" in valid_until:
                                         date_object = datetime.fromisoformat(valid_until[:-1])
                                     else:
@@ -191,6 +191,8 @@ def _init_configuration():
         config.misp_flatten_attributes = False
     if not hasattr(config, "sourcesystem"):
         config.sourcesystem = "MISP"
+    if not hasattr(config, "dry_run"):
+        config.dry_run = False
 
     return use_old_config
 
@@ -264,20 +266,23 @@ def main():
         parsed_indicators, total_indicators = _get_misp_events_stix()
         logger.info("Received {} indicators in MISP".format(total_indicators))
 
-    with RequestManager(total_indicators, logger) as request_manager:
-        if config.ms_auth["graph_api"]:
-            for request_body in _graph_post_request_body_generator(parsed_events):
-                if config.verbose_log:
-                    logger.debug("request body: {}".format(request_body))
-                request_manager.handle_indicator(request_body)
-        else:
-            logger.info("Start uploading indicators")
-            request_manager.upload_indicators(parsed_indicators)
-            logger.info("Finished uploading indicators")
-            if config.write_parsed_indicators:
-                json_formatted_str = json.dumps(parsed_indicators, indent=4)
-                with open("parsed_indicators.txt", "w") as fp:
-                    fp.write(json_formatted_str)
+    if config.dry_run:
+        logger.info("Dry run. Not uploading to Sentinel")
+    else:
+        with RequestManager(total_indicators, logger) as request_manager:
+            if config.ms_auth["graph_api"]:
+                for request_body in _graph_post_request_body_generator(parsed_events):
+                    if config.verbose_log:
+                        logger.debug("request body: {}".format(request_body))
+                    request_manager.handle_indicator(request_body)
+            else:
+                logger.info("Start uploading indicators")
+                request_manager.upload_indicators(parsed_indicators)
+                logger.info("Finished uploading indicators")
+                if config.write_parsed_indicators:
+                    json_formatted_str = json.dumps(parsed_indicators, indent=4)
+                    with open("parsed_indicators.txt", "w") as fp:
+                        fp.write(json_formatted_str)
 
 
 if __name__ == '__main__':
