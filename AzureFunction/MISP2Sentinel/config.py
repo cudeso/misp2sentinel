@@ -14,7 +14,6 @@ tenant_id=os.getenv('tenant_id', '')
 workspace_id=os.getenv('workspace_id', '')
 client_id=os.getenv('client_id', '')
 client_secret=os.getenv('client_secret', '')
-misp_event_filter_timestamp=os.getenv('misp_event_filter_timestamp', '14d')
 
 # MS API settings
 ms_auth = {
