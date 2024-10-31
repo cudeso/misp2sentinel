@@ -1,4 +1,5 @@
 import os
+import json 
 
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential
@@ -13,6 +14,7 @@ tenant_id=os.getenv('tenant_id', '')
 workspace_id=os.getenv('workspace_id', '')
 client_id=os.getenv('client_id', '')
 client_secret=os.getenv('client_secret', '')
+misp_event_filter_timestamp=os.getenv('misp_event_filter_timestamp', '14d')
 
 # MS API settings
 ms_auth = {
@@ -73,11 +75,19 @@ if(not bool(local_mode)):
     misp_verifycert = True
 
 # MISP Event filters
-misp_event_filters = {
-    "timestamp": "14d",
-    "enforceWarninglist": True,
-    "includeEventTags": True
-}
+if os.getenv('misp_event_filters', None):
+    misp_event_filters_raw = os.getenv('misp_event_filters')
+    try:
+        misp_event_filters = json.loads(misp_event_filters_raw)
+    except json.JSONDecodeError:
+        raise RuntimeError("Error parsing misp_event_filters. Make sure the content is a valid JSON object.")
+else:
+    misp_event_filters = {
+        "published": 1,
+        "publish_timestamp": "14d",
+        "enforceWarninglist": True,
+        "includeEventTags": True
+    }
 
 # MISP pagination settings
 misp_event_limit_per_page = 100      # Limit memory use when querying MISP for STIX packages
