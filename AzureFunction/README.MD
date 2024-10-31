@@ -51,7 +51,7 @@ Full instructions in [INSTALL.md](../docs/INSTALL.MD)
 11.  Add a "New application setting" (env variable) `timerTriggerSchedule` and set it to run. If you're running against multiple tenants with a big filter, set it to run once every two hours or so. 
    * The `timerTriggerSchedule` takes a cron expression. For more information, see [Timer trigger for Azure Functions](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-timer?tabs=python-v2%2Cin-process&pivots=programming-language-python).
    * Run once every two hours cron expression: `0 */2 * * *`
-
+12. Optionally add a "New application setting" (env variable) `misp_event_filters` and set it to a valid JSON object representing the filters to use when querying the MISP server (as per [MISP Settings](https://github.com/cudeso/misp2sentinel?tab=readme-ov-file#misp-settings)).
 
 #### Multi-tenant support
 
