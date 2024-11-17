@@ -149,18 +149,18 @@ For the Upload Indicators API:
 3. Add a new secret with the name "tenants" and the following value (its possible to add multiple Sentinel instances, it will loop all occurences):
 ```json
 [
-    {
-      "tenantId": "<TENANT_ID_WITH_APP_1>",
-      "id": "<APP_ID>",
-      "secret": "<APP_SECRET>",
-      "workspaceId": "<WORKSPACE_ID>"
-    },
-    {
-      "tenantId": "<TENANT_ID_WITH_APP_N>",
-      "id": "<APP_ID>",
-      "secret": "<APP_SECRET_N>",
-      "workspaceId": "<WORKSPACE_ID_N>"
-    }
+	{
+	    "<TENANT_ID_WITH_APP_1>": {
+	      "id": "<APP_ID>",
+	      "secret": "<APP_SECRET>",
+	      "workspaceid": "<WORKSPACE_ID>"
+	    },
+	    "<TENANT_ID_WITH_APP_N>": {
+	      "id": "<APP_ID>",
+	      "secret": "<APP_SECRET_N>",
+	      "workspaceid": "<WORKSPACE_ID_N>"
+	    }
+	}
 ]
 ```
 4. Add a new secret with the name "mispkey" and the value of your MISP API key
