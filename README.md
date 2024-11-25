@@ -113,13 +113,14 @@ For the Graph API:
 
 If you plan on using the Upload Indicators API then grant the Azure App **Microsoft Sentinel Contributor** permissions for the workspaces you want to connect to. 
 
-6.	Select **Access control (IAM)**.
-7.	Select **Add** > **Add role assignment**.
-8.	In the **Role** tab, select the **Microsoft Sentinel Contributor** role > **Next**.
-9.	On the Members tab, select Assign access to > User, group, or service principal.
-10.	**Select members**. By default, Microsoft Entra applications aren't displayed in the available options. To find your application, search for it by name
-11. Then select **Review + assign**.
-12. Also take note of the **Workspace ID**. You can get this ID by accessing the Overview page of the workspace.
+1. Navigate to the Log Analytics Workspace you with to connect to.
+2. Select **Access control (IAM)**.
+3. Select **Add** > **Add role assignment**.
+4. In the **Role** tab, select the **Microsoft Sentinel Contributor** role > **Next**.
+5. On the Members tab, select Assign access to > User, group, or service principal.
+6. **Select members**. By default, Microsoft Entra applications aren't displayed in the available options. To find your application, search for it by name
+7. Then select **Review + assign**.
+8. Also take note of the **Workspace ID**. You can get this ID by accessing the Overview page of the workspace.
 
 ![docs/misp2sentinel-workspaceroles.png](docs/misp2sentinel-workspaceroles.png)
 
@@ -412,11 +413,11 @@ The list of URLs which need to be whitelisted are summarised under [Which URLs s
 
 ### Cron job
 
-It is best to run the integration is from the cron of user www-data.
+It is best to prepare and deploy the cron job with user www-data.
 
 ```
 # Sentinel
-00 5 * * * cd /home/misp/misp2sentinel/ ; /home/misp/misp2sentinel/venv/bin/python /home/misp/misp2sentinel/script.py
+00 5 * * * cd /home/misp/misp2sentinel/ ; /home/misp/misp2sentinel/sentinel/bin/python /home/misp/misp2sentinel/script.py
 ```
 
 ## Integration details
