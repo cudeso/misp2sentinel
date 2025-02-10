@@ -135,7 +135,7 @@ class RequestObject_Indicator:
                 if config.days_to_expire_start.lower().strip() == "current_date":       # We start counting from current date
                     date_object = datetime.now() + timedelta(days=days_to_expire)
                 elif config.days_to_expire_start.lower().strip() == "valid_from":       # Start counting from valid_from
-                    date_object = datetime.fromisoformat(self.valid_from[:-1]) + timedelta(days=days_to_expire)
+                    date_object = datetime.fromisoformat(repr(self.valid_from).strip("'")[:-1]) + timedelta(days=days_to_expire)
                 if date_object:
                     self.valid_until = date_object.strftime("%Y-%m-%dT%H:%M:%SZ")
 
