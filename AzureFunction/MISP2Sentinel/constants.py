@@ -64,6 +64,7 @@ MISP_ACTIONABLE_TYPES = frozenset([
     *MISP_SPECIAL_CASE_TYPES
 ])
 
+
 CLIENT_ID = 'client_id'
 CLIENT_SECRET = 'client_secret'
 TENANT = 'tenant'
@@ -87,6 +88,7 @@ TLP_MARKING_OBJECT_DEFINITION={"tlp:white": "marking-definition--613f2e26-407d-4
                                     "tlp:amber": "marking-definition--f88d31f6-486f-44da-b317-01333bde0b82",
                                     "tlp:amber+strict": "marking-definition--f88d31f6-486f-44da-b317-01333bde0b82",
                                     "tlp:red": "marking-definition--5e57c739-391a-4eb3-b6be-7d15ca92d5ed"}
+
 KILL_CHAIN_MARKING_OBJECT_DEFINITION = {"Reconnaissance": "stix:TTP-445b4827-3cca-42bd-8421-f2e947133c16",
                                         "Weaponization": "stix:TTP-445b4827-3cca-42bd-8421-f2e947133c16",
                                         "Delivery": "stix:TTP-79a0e041-9d5f-49bb-ada4-8322622b162d",

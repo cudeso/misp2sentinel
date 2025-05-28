@@ -3,3 +3,4 @@
 .vscode/settings.json
 .vscode/tasks.json
 connector/*
+config.py

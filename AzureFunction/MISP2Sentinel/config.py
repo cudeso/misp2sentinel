@@ -110,8 +110,9 @@ default_confidence = 50
 days_to_expire = 30
 days_to_expire_start = "current_date" # Upload Indicators API only. Start counting from "valid_from" | "current_date" ; 
 days_to_expire_mapping = {          # Upload indicators API only. Mapping for expiration of specific indicator types
-                        "ipv4-addr": 150,
-                        "ipv6-addr": 150,
+                        "ipv4-addr": 180,
+                        "ipv6-addr": 180,
                         "domain-name": 300,
                         "url": 400
                     }
+misp_flatten_attributes = True 

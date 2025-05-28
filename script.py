@@ -7,10 +7,13 @@ from RequestObject import RequestObject, RequestObject_Event, RequestObject_Indi
 from constants import *
 import sys
 from functools import reduce
+import os
+import datetime
+from datetime import datetime, timedelta, timezone
 import logging
 import requests
 import json
-from datetime import datetime, timedelta
+
 from misp_stix_converter import MISPtoSTIX21Parser
 from stix2.base import STIXJSONEncoder
 
@@ -76,6 +79,7 @@ def _handle_tlp_level(parsed_event):
 
 
 def _get_misp_events_stix():
+    logger.info(f"Using the following values for MISP API call: domain: {config.misp_domain}")
     misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
     result_set = []
     logger.debug("Query MISP for events.")
@@ -215,10 +219,8 @@ def _build_logger():
 
     return logger
 
-
 def main():
     logger.info("Fetching and parsing data from MISP ...")
-
     if config.ms_auth.get("graph_api", False):
         logger.info("Using Microsoft Graph API")
         events = _get_events()
@@ -269,7 +271,7 @@ def main():
     if config.dry_run:
         logger.info("Dry run. Not uploading to Sentinel")
     else:
-        with RequestManager(total_indicators, logger) as request_manager:
+        with RequestManager(total_indicators, logger, config.ms_auth[TENANT]) as request_manager:
             if config.ms_auth["graph_api"]:
                 for request_body in _graph_post_request_body_generator(parsed_events):
                     if config.verbose_log:

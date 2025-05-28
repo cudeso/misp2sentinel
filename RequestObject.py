@@ -2,6 +2,7 @@ from distutils.command.config import config
 import config
 from constants import *
 from datetime import datetime, timedelta
+import logging
 from stix2.base import STIXJSONEncoder
 from stix2.utils import STIXdatetime
 import json

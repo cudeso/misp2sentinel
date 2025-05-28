@@ -8,6 +8,8 @@ import hashlib
 from constants import *
 import time
 import sys
+import logging
+
 
 class RequestManager:
     """A class that handles submitting TiIndicators to MS Graph Security API
@@ -20,28 +22,29 @@ class RequestManager:
 
     RJUST = 5
 
-    def __init__(self, total_indicators, logger):
+    def __init__(self, total_indicators, logger, tenant):
         self.total_indicators = total_indicators
         self.logger = logger
+        self.tenant = tenant
 
     def __enter__(self):
         try:
-            self.existing_indicators_hash_fd = open(EXISTING_INDICATORS_HASH_FILE_NAME, 'r+')
+            self.existing_indicators_hash_fd = open(EXISTING_INDICATORS_HASH_FILE_NAME+self.tenant+".json", 'r+')
             self.existing_indicators_hash = json.load(self.existing_indicators_hash_fd)
         except (FileNotFoundError, json.decoder.JSONDecodeError):
-            self.existing_indicators_hash_fd = open(EXISTING_INDICATORS_HASH_FILE_NAME, 'w')
+            self.existing_indicators_hash_fd = open(EXISTING_INDICATORS_HASH_FILE_NAME+self.tenant+".json", 'w')
             self.existing_indicators_hash = {}
         try:
-            self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME, 'r+')
+            self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME+self.tenant+".txt", 'r+')
             self.expiration_date = self.expiration_date_fd.read()
         except FileNotFoundError:
-            self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME, 'w')
+            self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME+self.tenant+".txt", 'w')
             self.expiration_date = self._get_expiration_date_from_config()
         if self.expiration_date <= datetime.datetime.utcnow().strftime('%Y-%m-%d'):
             self.existing_indicators_hash = {}
             self.expiration_date = self._get_expiration_date_from_config()
         self.hash_of_indicators_to_delete = copy.deepcopy(self.existing_indicators_hash)
-        # print(f"hash of indicators to delete {self.hash_of_indicators_to_delete}")
+        print(config.ms_auth[SCOPE])
         access_token = self._get_access_token(
             config.ms_auth[TENANT],
             config.ms_auth[CLIENT_ID],
@@ -63,6 +66,7 @@ class RequestManager:
     def _get_expiration_date_from_config():
         return (datetime.datetime.utcnow() + datetime.timedelta(config.days_to_expire)).strftime('%Y-%m-%d')
 
+    #@staticmethod
     def _get_access_token(self, tenant, client_id, client_secret, scope):
         data = {
             CLIENT_ID: client_id,
@@ -71,33 +75,39 @@ class RequestManager:
             'grant_type': 'client_credentials'
         }
 
-        access_token_response = requests.post(
-            f'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
-            data=data
-        ).json()
+        try:
+            access_token_response = requests.post(
+                f'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
+                data=data
+            ).json()
+            if ACCESS_TOKEN in access_token_response:
+                access_token = access_token_response[ACCESS_TOKEN]
+                return access_token
+            elif "error" in access_token_response:
+                self.logger.error("Exiting. Error: {}".format(access_token_response["error_description"]))
+                sys.exit("Exiting. Error: {}".format(access_token_response["error_description"]))        
+            else:
+                self.logger.error("Exiting. No access token {} found.".format(ACCESS_TOKEN))
+                sys.exit("Exiting. No access token {} found.".format(ACCESS_TOKEN))
+        except requests.exceptions.RequestException as err:
+            logging.error(f"Failed to get access token with: Tenant: {tenant} | ClientId: {client_id} | Scope: {scope} | Err: {err}")
+        except Exception as e:
+            logging.error(f"An unexpected error occurred: {e}")
 
-        if ACCESS_TOKEN in access_token_response:
-            access_token = access_token_response[ACCESS_TOKEN]
-            return access_token
-        elif "error" in access_token_response:
-            self.logger.error("Exiting. Error: {}".format(access_token_response["error_description"]))
-            sys.exit("Exiting. Error: {}".format(access_token_response["error_description"]))        
-        else:
-            self.logger.error("Exiting. No access token {} found.".format(ACCESS_TOKEN))
-            sys.exit("Exiting. No access token {} found.".format(ACCESS_TOKEN))
-
+    @staticmethod
     def read_tiindicators(self):
         access_token = RequestManager._get_access_token(
             config.ms_auth[TENANT],
             config.ms_auth[CLIENT_ID],
-            config.ms_auth[CLIENT_SECRET])
+            config.ms_auth[CLIENT_SECRET],
+            config.ms_auth[SCOPE])
 
         res = requests.get(
             GRAPH_TI_INDICATORS_URL,
             headers={"Authorization": f"Bearer {access_token}"}
             ).json()
         if config.verbose_log:
-            self.logger.info(res, indent=2)
+            self.logger.debug(json.dumps(res, indent=2))
 
     @staticmethod
     def _get_request_hash(request):
@@ -110,6 +120,22 @@ class RequestManager:
                 sort_keys=True,
             ).encode("utf-8")
         ).hexdigest()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+
+        if config.ms_auth["graph_api"]:
+            self._post_to_graph()
+            self._del_indicators_no_longer_exist()
+
+            self.expiration_date_fd.seek(0)
+            self.expiration_date_fd.write(self.expiration_date)
+            self.expiration_date_fd.truncate()
+
+            self.existing_indicators_hash_fd.seek(0)
+            json.dump(self.existing_indicators_hash, self.existing_indicators_hash_fd, indent=2)
+            self.existing_indicators_hash_fd.truncate()
+
+            self._print_summary()
 
     def _log_post(self, response):
         # self._clear_screen()
@@ -159,21 +185,7 @@ class RequestManager:
     def _get_datetime_now():
         return str(datetime.datetime.now()).replace(' ', '_')
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
 
-        if config.ms_auth["graph_api"]:
-            self._post_to_graph()
-            self._del_indicators_no_longer_exist()
-
-            self.expiration_date_fd.seek(0)
-            self.expiration_date_fd.write(self.expiration_date)
-            self.expiration_date_fd.truncate()
-
-            self.existing_indicators_hash_fd.seek(0)
-            json.dump(self.existing_indicators_hash, self.existing_indicators_hash_fd, indent=2)
-            self.existing_indicators_hash_fd.truncate()
-
-            self._print_summary()
 
     def _del_indicators_no_longer_exist(self):
         indicators = list(self.hash_of_indicators_to_delete.values())

@@ -7,6 +7,7 @@ import copy
 import hashlib
 from MISP2Sentinel.constants import *
 import time
+import sys
 import logging
 
 
@@ -21,8 +22,9 @@ class RequestManager:
 
     RJUST = 5
 
-    def __init__(self, total_indicators, tenant):
+    def __init__(self, total_indicators, logger, tenant):
         self.total_indicators = total_indicators
+        self.logger = logger
         self.tenant = tenant
 
     def __enter__(self):
@@ -39,7 +41,6 @@ class RequestManager:
             self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME+self.tenant+".txt", 'w')
             self.expiration_date = self._get_expiration_date_from_config()
         if self.expiration_date <= datetime.datetime.utcnow().strftime('%Y-%m-%d'):
-            #logging.info("----------------CLEAR existing_indicators_hash---------------------------")
             self.existing_indicators_hash = {}
             self.expiration_date = self._get_expiration_date_from_config()
         self.hash_of_indicators_to_delete = copy.deepcopy(self.existing_indicators_hash)
@@ -64,39 +65,48 @@ class RequestManager:
     def _get_expiration_date_from_config():
         return (datetime.datetime.utcnow() + datetime.timedelta(config.days_to_expire)).strftime('%Y-%m-%d')
 
-    @staticmethod
-    def _get_access_token(tenant, client_id, client_secret, scope):
+    #@staticmethod
+    def _get_access_token(self, tenant, client_id, client_secret, scope):
         data = {
             CLIENT_ID: client_id,
             'scope': scope,
             CLIENT_SECRET: client_secret,
             'grant_type': 'client_credentials'
         }
+
         try:
-            access_token = requests.post(
+            access_token_response = requests.post(
                 f'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
                 data=data
-            ).json()[ACCESS_TOKEN]
-            return access_token
+            ).json()
+            if ACCESS_TOKEN in access_token_response:
+                access_token = access_token_response[ACCESS_TOKEN]
+                return access_token
+            elif "error" in access_token_response:
+                self.logger.error("Exiting. Error: {}".format(access_token_response["error_description"]))
+                sys.exit("Exiting. Error: {}".format(access_token_response["error_description"]))        
+            else:
+                self.logger.error("Exiting. No access token {} found.".format(ACCESS_TOKEN))
+                sys.exit("Exiting. No access token {} found.".format(ACCESS_TOKEN))
         except requests.exceptions.RequestException as err:
             logging.error(f"Failed to get access token with: Tenant: {tenant} | ClientId: {client_id} | Scope: {scope} | Err: {err}")
         except Exception as e:
             logging.error(f"An unexpected error occurred: {e}")
 
     @staticmethod
-    def read_tiindicators():
+    def read_tiindicators(self):
         access_token = RequestManager._get_access_token(
-                config.ms_auth[TENANT],
-                config.ms_auth[CLIENT_ID],
-                config.ms_auth[CLIENT_SECRET],
-                config.ms_auth[SCOPE])
+            config.ms_auth[TENANT],
+            config.ms_auth[CLIENT_ID],
+            config.ms_auth[CLIENT_SECRET],
+            config.ms_auth[SCOPE])
 
         res = requests.get(
             GRAPH_TI_INDICATORS_URL,
             headers={"Authorization": f"Bearer {access_token}"}
             ).json()
         if config.verbose_log:
-            logging.debug(json.dumps(res, indent=2))
+            self.logger.debug(json.dumps(res, indent=2))
 
     @staticmethod
     def _get_request_hash(request):
@@ -109,7 +119,7 @@ class RequestManager:
                 sort_keys=True,
             ).encode("utf-8")
         ).hexdigest()
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
 
         if config.ms_auth["graph_api"]:
@@ -130,7 +140,7 @@ class RequestManager:
         # self._clear_screen()
         cur_batch_success_count = cur_batch_error_count = 0
         if config.verbose_log:
-            logging.debug(f"response: {response}")
+            self.logger.debug("Response: {}".format(response))
 
         if 'error' in response:
             self.error_count += 1
@@ -167,12 +177,14 @@ class RequestManager:
                     with open(f'{LOG_DIRECTORY_NAME}/{log_file_name}', 'w') as file:
                         json.dump(response, file)
 
-        logging.info('sending security indicators to Microsoft Graph Security\n')
-        logging.info(f'{self.total_indicators} indicators are parsed from misp events. Only those that do not exist in Microsoft Graph Security will be sent.\n')
+        self.logger.info("Sending security indicators to Microsoft Graph Security")
+        self.logger.info("{} indicators are parsed from MISP events. Only those that do not exist in Microsoft Graph Security will be sent.".format(self.total_indicators))
 
     @staticmethod
     def _get_datetime_now():
         return str(datetime.datetime.now()).replace(' ', '_')
+
+
 
     def _del_indicators_no_longer_exist(self):
         indicators = list(self.hash_of_indicators_to_delete.values())
@@ -180,7 +192,7 @@ class RequestManager:
         for i in range(0, len(indicators), 100):
             request_body = {'value': indicators[i: i+100]}
             if config.verbose_log:
-                logging.debug(request_body)
+                self.logger.debug(request_body)
             response = requests.post(GRAPH_BULK_DEL_URL, headers=self.headers, json=request_body).json()
             file_name = f"del_{self._get_datetime_now()}.json"
             log_file_name = file_name.replace(':', '')
@@ -190,11 +202,11 @@ class RequestManager:
             self.existing_indicators_hash.pop(hash_of_indicator_to_delete, None)
 
     def _print_summary(self):
-        logging.info('script finished running\n')
-        logging.info(f"total indicators sent:    {str(self._get_total_indicators_sent()).rjust(self.RJUST)}")
-        logging.info(f"total response success:   {str(self.success_count).rjust(self.RJUST)}")
-        logging.info(f"total response error:     {str(self.error_count).rjust(self.RJUST)}")
-        logging.info(f"total indicators deleted: {str(self.del_count).rjust(self.RJUST)}")
+        self.logger.info("Script finished running")
+        self.logger.info("Total indicators sent:    {}".format(str(self._get_total_indicators_sent()).rjust(self.RJUST)))
+        self.logger.info("Total response success:   {}".format(str(self.success_count).rjust(self.RJUST)))
+        self.logger.info("Total response error:     {}".format(str(self.error_count).rjust(self.RJUST)))
+        self.logger.info("Total indicators deleted: {}".format(str(self.del_count).rjust(self.RJUST)))
 
     def _post_to_graph(self):
         request_body = {'value': self.indicators_to_be_sent}
@@ -210,7 +222,7 @@ class RequestManager:
             if requests_number >= config.ms_max_requests_minute:
                 sleep_time = (config.ms_max_requests_minute + safe_margin) - (self._get_timestamp() - start_timestamp)
                 if sleep_time > 0:
-                    logging.info("Pausing upload for API request limit {}".format(sleep_time))
+                    self.logger.info("Pausing upload for API request limit {}".format(sleep_time))
                     time.sleep(sleep_time)
                 requests_number = 0
                 start_timestamp = self._get_timestamp()
@@ -218,7 +230,7 @@ class RequestManager:
             workspace_id = config.ms_auth["workspace_id"]
             api_version = config.ms_api_version
             request_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api-version={api_version}"
-            request_body = {"sourcesystem": "MISP", "value": parsed_indicators[:config.ms_max_indicators_request]}
+            request_body = {"sourcesystem": config.sourcesystem, "value": parsed_indicators[:config.ms_max_indicators_request]}
 
             # Setting result retry as true to enter the loop
             result = {"retry": True, "breakRun": False}
@@ -236,7 +248,7 @@ class RequestManager:
                 parsed_indicators = result.get("parsed_indicators", parsed_indicators)
 
     def handle_response_codes(self, response, safe_margin, requests_number, request_body, parsed_indicators):
-        logging.debug(response)
+        self.logger.debug(response)
         status_code = response.status_code
         result = {}
         switcher = {
@@ -244,13 +256,13 @@ class RequestManager:
             200: lambda: self.handle_success_response(response, request_body, parsed_indicators, requests_number),
         }
         result = switcher.get(status_code, lambda: self.handle_error_response(response))()
-        logging.debug(result)
+        self.logger.debug(result)
         return result
 
     def handle_rate_limit_exceeded(self, response, safe_margin, parsed_indicators):
         error_message = response.json()["message"]
         retry_after = int(error_message.split()[-2])
-        logging.warning(f"Rate limit exceeded. Retrying after {retry_after} seconds.")
+        self.logger.warning(f"Rate limit exceeded. Retrying after {retry_after} seconds.")
         time.sleep(retry_after + safe_margin)
         # Retry the request - go back one entry in the list (which had the error)
         parsed_indicators = parsed_indicators[config.ms_max_indicators_request-1:]
@@ -262,16 +274,16 @@ class RequestManager:
                 json_formatted_str = json.dumps(response.json(), indent=4)
                 with open("sentinel_response.txt", "a") as fp:
                     fp.write(json_formatted_str)
-            logging.error("Error when submitting indicators - error string received from Sentinel. {}".format(response.text))
+            self.logger.error("Error when submitting indicators - error string received from Sentinel. {}".format(response.text))
             return {"retry": False, "breakRun": True}
         else:
             parsed_indicators = parsed_indicators[config.ms_max_indicators_request:]
-            logging.info(
+            self.logger.info(
                 "Indicators sent - request number: {} / indicators: {} / remaining: {}".format(requests_number, len(request_body["value"]), len(parsed_indicators)))
             return {"retry": False, "breakRun": False, "parsed_indicators": parsed_indicators}
 
     def handle_error_response(self, response):
-        logging.error("Error when submitting indicators. Non HTTP-200 response. {}".format(response.text))
+        self.logger.error("Error when submitting indicators. Non HTTP-200 response. {}".format(response.text))
         return {"retry": False, "breakRun": True}
     
     def handle_indicator(self, indicator):
@@ -283,7 +295,7 @@ class RequestManager:
         if indicator_hash not in self.existing_indicators_hash:
             self.indicators_to_be_sent.append(indicator)
         if len(self.indicators_to_be_sent) >= 100:
-            logging.info(f"number of indicators sent: {self.success_count+self.error_count}")
+            self.logger.info("Number of indicators sent: {}".format(self.success_count+self.error_count))
             self._post_to_graph()
 
     def _update_headers_if_expired(self):
