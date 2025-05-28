@@ -1,54 +1,3 @@
-- [MISP to Microsoft Sentinel integration](#misp-to-microsoft-sentinel-integration)
-  - [Introduction](#introduction)
-    - [Upload Indicators API and Graph API](#upload-indicators-api-and-graph-api)
-    - [STIX instead of MISP JSON](#stix-instead-of-misp-json)
-    - [Sentinel Workspaces](#sentinel-workspaces)
-    - [Microsoft Azure Market Place](#microsoft-azure-market-place)
-  - [Installation](#installation)
-    - [Azure](#azure)
-      - [Azure App registration](#azure-app-registration)
-      - [Threat intelligence data connector](#threat-intelligence-data-connector)
-      - [Azure Function](#azure-function)
-    - [MISP](#misp)
-      - [API key](#api-key)
-      - [Python environment](#python-environment)
-  - [Configuration](#configuration)
-    - [Microsoft settings](#microsoft-settings)
-    - [MISP settings](#misp-settings)
-    - [Azure Key Vault integration (only works on Azure VMs)](#azure-key-vault-integration-only-works-on-azure-vms)
-    - [Integration settings](#integration-settings)
-  - [Setup](#setup)
-    - [Cron job](#cron-job)
-  - [Integration details](#integration-details)
-    - [MISP taxonomies](#misp-taxonomies)
-    - [Attack patterns](#attack-patterns)
-    - ["Created by" in Sentinel](#created-by-in-sentinel)
-    - [Mappings](#mappings)
-      - [Confidence level](#confidence-level)
-      - [Sentinel threat type](#sentinel-threat-type)
-      - [Kill Chain](#kill-chain)
-      - [TLP](#tlp)
-      - [Diamond model](#diamond-model)
-      - [Threat actors](#threat-actors)
-      - [Ignored types](#ignored-types)
-      - [Expiration date](#expiration-date)
-      - [Attribute mapping](#attribute-mapping)
-    - [Detailed workflow for Upload Indicators API](#detailed-workflow-for-upload-indicators-api)
-  - [FAQ](#faq)
-    - [I don't see my indicator in Sentinel](#i-dont-see-my-indicator-in-sentinel)
-    - [I don't see my indicator in Sentinel (2)](#i-dont-see-my-indicator-in-sentinel-2)
-    - [I want to ignore the x-misp-object and synchronise all attribute](#i-want-to-ignore-the-x-misp-object-and-synchronise-all-attribute)
-    - [Can I get a copy of the requests sent to Sentinel?](#can-i-get-a-copy-of-the-requests-sent-to-sentinel)
-    - [Can I get a copy of the response errors returned by Sentinel?](#can-i-get-a-copy-of-the-response-errors-returned-by-sentinel)
-    - [An attribute with to\_ids to False is sent to Sentinel](#an-attribute-with-to_ids-to-false-is-sent-to-sentinel)
-    - [What is tenant, client\_id and workspace\_id?](#what-is-tenant-client_id-and-workspace_id)
-    - [I need help with the MISP event filters](#i-need-help-with-the-misp-event-filters)
-    - [What are the configuration changes compared to the old Graph API version?](#what-are-the-configuration-changes-compared-to-the-old-graph-api-version)
-    - [I want to limit which tags get synchronised to Sentinel](#i-want-to-limit-which-tags-get-synchronised-to-sentinel)
-    - [Error: KeyError: 'access\_token'](#error-keyerror-access_token)
-    - [Error: Unable to process indicator. Invalid indicator type or invalid valid\_until date.](#error-unable-to-process-indicator-invalid-indicator-type-or-invalid-valid_until-date)
-  - [Additional documentation](#additional-documentation)
-
 # MISP to Microsoft Sentinel integration
 
 ## Introduction
@@ -62,29 +11,16 @@ The integration supports two methods for sending threat intelligence from MISP t
 - The recommend [Upload Indicators API](https://learn.microsoft.com/en-us/azure/sentinel/connect-threat-intelligence-upload-api), or
 - The [deprecated](https://learn.microsoft.com/en-us/graph/migrate-azure-ad-graph-overview) Microsoft Graph API. To facilitate the transition the integration supports both APIs.
 
-If you were previously using the *old* version of MISP2Sentinel via the Microsoft Graph API then take a moment before upgrading.
 
-- The new integration has different dependencies, for example the Python library [misp-stix](https://github.com/MISP/misp-stix) needs to be installed;
-- Your Azure App requires permissions on your workplace;
-- There are changes in `config.py`. The most important changes are listed in the FAQ.
+### STIX
 
-### STIX instead of MISP JSON
-
-The change in API also has an impact on how data MISP data is used. The **Graph API** version queries the MISP REST API for results in MISP JSON format, and then does post-processing on the retrieved data. The new **Upload Indicators API** of Microsoft is STIX based. The integration now relies on [MISP-STIX](https://github.com/MISP/misp-stix) a Python library to handle the conversion between MISP and STIX format. For reference, [STIX](https://stixproject.github.io/), is a structured language for describing threat information to make sharing information between systems easier.
+The integration relies on [MISP-STIX](https://github.com/MISP/misp-stix) to handle the conversion between MISP and STIX format.
 
 ![docs/base-MISP2Sentinel.png](docs/base-MISP2Sentinel.png)
 
-From a functional point of view, all indicators that can be synchronised via the Graph API, can also be synchronised via the Upload Indicators API. There are some features missing in the STIX implementation of Sentinel and as a result some context information (identity, attack patterns) is lost. But it is only a matter of time before these are implemented on the Sentinel side, after which you can fully benefit from the STIX conversion.
-
-### Sentinel Workspaces
-
-In addition to the change to STIX, the new API also supports Sentinel **Workspaces**. This means you can send indicators to just one workspace, instead of pushing them globally. Compared to the previous version of MISP2Sentinel there also has been a clean-up of the configuration settings and the integration no longer outputs to stdout, but writes its activity in a **log file**.
-
 ### Microsoft Azure Market Place
 
-The [misp2sentinel](https://github.com/cudeso/misp2sentinel) solution is in the Market Place or [Microsoft Sentinel Content Hub](https://portal.azure.com/#create/microsoftsentinelcommunity.azure-sentinel-solution-misp2sentinel) with a corresponding data connector. Note that enabling the solution in Azure isn't sufficient to sync indicators. You still need to setup the *Python environment* or use the *Azure Function*.
-
-![docs/misp2sentinel.png-2](docs/misp2sentinel-2.png)
+[misp2sentinel](https://github.com/cudeso/misp2sentinel) is available in the Microsoft Market Place or [Microsoft Sentinel Content Hub](https://portal.azure.com/#create/microsoftsentinelcommunity.azure-sentinel-solution-misp2sentinel)
 
 ![docs/misp2sentinel.png-1](docs/misp2sentinel-1.png)
 
@@ -94,44 +30,30 @@ The [misp2sentinel](https://github.com/cudeso/misp2sentinel) solution is in the 
 
 #### Azure App registration
 
-You need to register a new **application** in the Microsoft [Application Registration Portal](https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredApps).
+Register a new **application** in the Microsoft [Application Registration Portal](https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredApps).
 
 1. Sign in to the [Application Registration Portal](https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredApps).
 2. Choose **New registration**.
-3. Enter an application name, and choose **Register**. The application name does not matter but pick something that's easy recognisable. ![docs/misp2sentinel_appreg1.png](/docs/misp2sentinel_appreg1.png)
-4. From the overview page of your app note the **Application ID** (client) and **Directory ID** (tenant). You will need it later to complete the configuration.
-5. Under **Certificates & secrets** (in the left pane), choose **New client secret** and add a description. A new secret will be displayed in the **Value** column. Copy this password. You will need it later to complete the configuration and it will not be shown again.
+3. Enter an application name, and choose **Register**. ![docs/misp2sentinel_appreg1.png](/docs/misp2sentinel_appreg1.png)
+4. Note the **Application ID** (client) and **Directory ID** (tenant)
+5. Under **Certificates & secrets**, choose **New client secret** and add a description. A new secret will be displayed in the **Value** column. Copy this password, it will not be shown again.
 
-As a next step, you need to grant the **necessary permissions**. 
+Grant the Azure App **Microsoft Sentinel Contributor** permissions for the workspaces you want to connect to. 
 
-For the Graph API:
-
-1. Under **API permissions** (left pane), choose **Add a permission > Microsoft Graph**.
-2. Under **Application Permissions**, add **ThreatIndicators.ReadWrite.OwnedBy**.
-3. Then grant **consent** for the new permissions via **Grant admin consent for Standaardmap** (*Standaardmap* is replaced with your local tenant setting). Without the consent the application will not have sufficient permissions.
-
-If you plan on using the Upload Indicators API then grant the Azure App **Microsoft Sentinel Contributor** permissions for the workspaces you want to connect to. 
-
-6.	Select **Access control (IAM)**.
-7.	Select **Add** > **Add role assignment**.
-8.	In the **Role** tab, select the **Microsoft Sentinel Contributor** role > **Next**.
-9.	On the Members tab, select Assign access to > User, group, or service principal.
-10.	**Select members**. By default, Microsoft Entra applications aren't displayed in the available options. To find your application, search for it by name
-11. Then select **Review + assign**.
-12. Also take note of the **Workspace ID**. You can get this ID by accessing the Overview page of the workspace.
+1. Navigate to the Log Analytics Workspace you with to connect to.
+2. Select **Access control (IAM)**.
+3. Select **Add** > **Add role assignment**.
+4. In the **Role** tab, select the **Microsoft Sentinel Contributor** role > **Next**.
+5. On the Members tab, select Assign access to > User, group, or service principal.
+6. **Select members**. By default, Microsoft Entra applications aren't displayed in the available options. To find your application, search for it by name
+7. Then select **Review + assign**.
+8. Also take note of the **Workspace ID**. You can get this ID by accessing the Overview page of the workspace.
 
 ![docs/misp2sentinel-workspaceroles.png](docs/misp2sentinel-workspaceroles.png)
 
 #### Threat intelligence data connector
 
-After the registration of the app it's time to add a **data connector**.
-
-For the Graph API:
-
-1. Go to the **Sentinel** service.
-1. Under **Configuration**, **Data connectors** search for **Threat Intelligence Platforms (Preview)**. Open the connection pane and click connect.
-
-For the Upload Indicators API:
+Add a **data connector**.
 
 1. Go to the **Sentinel** service.
 2. Choose the **workspace** where you want to import the indicators from MISP.
@@ -141,55 +63,18 @@ For the Upload Indicators API:
 
 #### Azure Function
 
-**Please note**: This step is optional and replaces the need for running the solution directly on the MISP-server itself, instead chosing to run the script in an Azure Function.
-
-1. Create an app registration in the same Microsoft tenant where the Sentinel instance resides. The app requires Microsoft Sentinel Contributor assigned on the workspace.
-2. Create a Keyvault in your Azure subscription
-3. Add a new secret with the name "tenants" and the following value (its possible to add multiple Sentinel instances, it will loop all occurences):
-```json
-[
-    {
-      "tenantId": "<TENANT_ID_WITH_APP_1>",
-      "id": "<APP_ID>",
-      "secret": "<APP_SECRET>",
-      "workspaceId": "<WORKSPACE_ID>"
-    },
-    {
-      "tenantId": "<TENANT_ID_WITH_APP_N>",
-      "id": "<APP_ID>",
-      "secret": "<APP_SECRET_N>",
-      "workspaceId": "<WORKSPACE_ID_N>"
-    }
-]
-```
-4. Add a new secret with the name "mispkey" and the value of your MISP API key
-5. Create an Azure Function in your Azure subscription, this needs to be a Linux based Python 3.9 function.
-6. Modify config.py to your needs (event filter). 
-7. Upload the code to your Azure Function. 
-   * If you are using VSCode, this can be done by clicking the Azure Function folder and selecting "Deploy to Function App", provided you have the Azure Functions extension installed.
-   * If using Powershell, you can upload the ZIP file using the following command: `Publish-AzWebapp -ResourceGroupName <resourcegroupname> -Name <functionappname> -ArchivePath <path to zip file> -Force`. If you want to make changes to the ZIP-file, simply send the contents of the `AzureFunction`-folder (minus any `.venv`-folder you might have created) to a ZIP-file and upload that.
-   * If using AZ CLI, you can upload the ZIP file using the following command: `az functionapp deployment source config-zip --resource-group <resourcegroupname> --name <functionappname> --src <path to zip file>`.
-   * You can also use the [`WEBSITE_RUN_FROM_PACKAGE`](https://learn.microsoft.com/en-us/azure/azure-functions/functions-app-settings#website_run_from_package) configuration setting, which will allow you to upload the ZIP-file to a storage account (or Github repository) and have the Azure Function run from there. This is useful if you want to use a CI/CD pipeline to deploy the Azure Function, meaning you can just update the ZIP-file and have the Azure Function automatically update.
-8. Add a "New application setting" (env variable) to your Azure Function named `tenants`. Create a reference to the key vault previously created (`@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/tenants/)`).
-9. Do the same for the `mispkey` secret (`@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/mispkey/)`)
-10. Add a "New application setting" (env variable) called `mispurl` and add the URL to your MISP-server (`https://<mispurl>`)
-11. Add a "New application setting" (env variable) `timerTriggerSchedule` and set it to run. If you're running against multiple tenants with a big filter, set it to run once every two hours or so. 
-   * The `timerTriggerSchedule` takes a cron expression. For more information, see [Timer trigger for Azure Functions](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-timer?tabs=python-v2%2Cin-process&pivots=programming-language-python).
-   * Run once every two hours cron expression: `0 */2 * * *`
-
-For a more in-depth guidance, check out the [INSTALL.MD](https://github.com/cudeso/misp2sentinel/blob/main/docs/INSTALL.MD) guidance, or read [Use Update Indicators API to push Threat Intelligence from MISP to Microsoft Sentinel](https://www.infernux.no/MicrosoftSentinel-MISP2SentinelUpdate/).
+**Please note**: This step is optional and replaces the need for running the solution directly on the MISP-server itself, instead choosing to run the script in an Azure Function.
+See: [AzureFunction/README.MD](AzureFunction/README.MD)
 
 ### MISP
 
 #### API key
 
-The MISP2Sentinel integrations requires access to the MISP REST API and you need an API key to access it. 
-
-Create the key under **Global Actions**, **My Profile** and then choose **Auth keys**. Add a new key. The key can be set to *read-only* as the integration does not alter MISP data.
+The MISP2Sentinel integrations requires access to the MISP REST API and you need an API key to access it. Create the key under **Global Actions**, **My Profile** and then choose **Auth keys**. Add a new key. The key can be set to *read-only* as the integration does not alter MISP data.
 
 #### Python environment
 
-You then need **Python3**, a Python virtual environment and PyMISP.
+You need **Python3**, a Python virtual environment and PyMISP.
 
 1. Verify you have `python3` installed on your system
 2. Download the repository `git clone https://github.com/cudeso/misp2sentinel.git`
@@ -199,19 +84,18 @@ You then need **Python3**, a Python virtual environment and PyMISP.
 
 ## Configuration
 
-The configuration is handled in the `config.py` file.
+The configuration is in `config.py`.
 
 By default the config.py will look to use Azure Key Vault if configured, if you set a **"key_vault_name"** value in your environment variables, to the name of the Azure Key Vault you have deployed, this will be the default store for all secret and configuration values.
 
 If you do not set the above value, the config.py will then fall-back to using environment variables and lastly, values directly written inside of the config.py file.
 
-[Guidance for assigning a Management Service Indeitity to Function App](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp)
-
-[Assigning your function app permissions to Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/assign-access-policy?tabs=azure-portal) - **NOTE** - you only need to assign "Secret GET" permission to your function app Management Service Identity.
+- [Guidance for assigning a Management Service Identity to Function App](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp)
+- [Assigning your function app permissions to Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/assign-access-policy?tabs=azure-portal) - **NOTE** - you only need to assign "Secret GET" permission to your function app Management Service Identity.
 
 ### Microsoft settings
 
-First define the Microsoft authentication settings in the dictionary **ms_auth**. The `tenant` (Directory ID), `client_id` (Application client ID), and `client_secret` (secret client value) are the values you obtained when setting up the Azure App. You can then choose between the Graph API or the recommended Upload Indicators API. To use the former : set `graph_api` to True and choose as `scope` 'https://graph.microsoft.com/.default'. To use the Upload Indicators API, set `graph_api` to False, choose as `scope` 'https://management.azure.com/.default' and set the workspace ID in `workspace_id`.
+Define the Microsoft authentication settings in **ms_auth**. The `tenant` (Directory ID), `client_id` (Application client ID), and `client_secret` (secret client value) are the values you obtained when setting up the Azure App. Set `graph_api` to False, choose as `scope` 'https://management.azure.com/.default' and set the workspace ID in `workspace_id`.
   
 ```
 ms_auth = {
@@ -225,23 +109,11 @@ ms_auth = {
 }
 ```
 
-Next there are settings that influence the interaction with the Microsoft Sentinel APIs.
-
-The settings for the **Graph API** are
-- `ms_passiveonly = False`: Determines if the indicator should trigger an event that is visible to an end-user. 
-  - When set to ‘true,’ security tools will not notify the end user that a 'hit' has occurred. This is most often treated as audit or silent mode by security products where they will simply log that a match occurred but will not perform the action. This setting no longer exists in the Upload Indicators API.
-- `ms_action = 'alert` : The action to apply if the indicator is matched from within the targetProduct security tool.
-  - Possible values are: unknown, allow, block, alert. This setting no longer exists in the Upload Indicators API.
-
-The settings for the **Upload Indicators API** are
 - `ms_api_version = "2022-07-01"`: The API version. Leave this to "2022-07-01".
 - `ms_max_indicators_request = 100`: Throttling limits for the API. Maximum indicators that can be send per request. Max. 100.
 - `ms_max_requests_minute = 100`: Throttling limits for the API. Maximum requests per minute. Max. 100.
 
 ```
-ms_passiveonly = False              # Graph API only
-ms_action = 'alert'                 # Graph API only
-
 ms_api_version = "2022-07-01"       # Upload Indicators API version
 ms_max_indicators_request = 100     # Upload Indicators API: Throttle max: 100 indicators per request
 ms_max_requests_minute = 100        # Upload Indicators API: Throttle max: 100 requests per minute
@@ -257,12 +129,14 @@ misp_domain = '<misp_url>'
 misp_verifycert = False (by default this is False, however this is determined by an environment variable set "local_mode", see config.py
 ```
 
-The dictionary `misp_event_filters` defines which filters you want to pass on to MISP. This applies to both Graph API and Upload Indictors API. The suggested settings are
+The dictionary `misp_event_filters` defines which filters you want to pass on to MISP. Suggested settings are
 - `"published": 1`: Only include events that are published
 - `"tags": [ "workflow:state=\"complete\""]`: Only events with the workflow state 'complete'
 - `"enforceWarninglist": True`: Skip indicators that match an entry with a warninglist. This is highly recommended, but obviously also depends on if you have enable MISP warninglists.
 - `"includeEventTags": True`: Include the tags from events for additional context
 - `"publish_timestamp": "14d`: Include events published in the last 14 days
+
+Although it might be tempting keep the `publish_timestamp` to 14 days, it's better to only use the 14 (or higher) days for the initial run. Afterwards **set the publish_timestamp to a value that's equal to the frequency you synchronise** with Sentinel. Meaning, if you sync every 12 hours, set the publish_timestamp to 12h. It has no additional value to search for older events, as these have already been published previously.
 
 There's one MISP filter commonly used that does not have an impact for this integration: **to_ids**. In MISP `to_ids` defines if an indicator is *actionable* or not. Unfortunately the REST API only supports the to_ids filter when querying for attributes. This integration queries for events. Does this mean that indicators with to_ids set to False are uploaded? No. In the Graph API version, only attributes with to_ids set to True are used. The Upload Indicators API relies on the MISP-STIX conversion of attributes (and objects). This conversion checks for the to_ids flag for indicators, the only exception being attributes part of an object (also see [#48](https://github.com/MISP/misp-stix/issues/48)).
 
@@ -358,8 +232,10 @@ These settings apply to both the Graph API and Upload Indicators API.
 
 - `days_to_expire = 50`: The default number of days after which an indictor in Sentinel will expire. 
 
-For the Graph API the date is calculated based on the timestamp when the script is executed. The expiration of indicators works slightly different for the Upload Indicators API. There are two additional settings that apply for this API:
-- `days_to_expire_start = "current_date"`: Define if you want to start counting the "expiration" date (defined in `days_to_expire`) from the current date (by using the value `current_date`) or from the value specified by MISP with `valid_from`.
+For the Graph API the date is calculated based on the timestamp when the script is executed. 
+
+The expiration of indicators works slightly different for the Upload Indicators API. There are two additional settings that apply for this API:
+- `days_to_expire_start`: Define if you want to start counting the "expiration" date (defined in `days_to_expire`) from the current date (with `current_date`) or from the value specified by MISP (with `valid_from`).
 - `days_to_expire_mapping`: Is a dictionary mapping specific expiration dates for indicators (STIX patterns). The numerical value is in days. This value overrides `days_to_expire`.
 
 ```
@@ -373,7 +249,16 @@ days_to_expire_mapping = {          # Upload indicators API only. Mapping for ex
                 }
 ```
 
-In MISP you can set the *first seen* and *last seen* value of attributes. In the MISP-STIX conversion, this last seen value is translated to *valid_until*. This valid_until influences the expiration date of the indicator. If the expiration date (calculated with the above values) is after the current date, then it is ignored. In some cases it can be useful to ignore the last seen value set in MISP, and just use your own calculations of the expiration date. You can do this with `days_to_expire_ignore_misp_last_seen`. This ignores the last seen value, and calculates expiration date based on `days_to_expire` (and _mapping).
+In MISP you can set the *first seen* and *last seen* of attributes. In the MISP-STIX conversion, last seen is translated to *valid_until*. This valid_until influences the expiration date of the indicator. If the expiration date (calculated with the above values) is after the current date, then it is ignored. In some cases it can be useful to ignore the last seen value set in MISP, and just use your own calculations of the expiration date. You can do this with `days_to_expire_ignore_misp_last_seen`. This ignores the last seen value, and calculates expiration date based on `days_to_expire` (and _mapping).
+
+In summary. 
+- If valid_until is set in MISP
+	- Set expire to valid_until
+- Else
+  - If days_to_expire_start == current_date
+  	- Set expire to "now" + days from either days_to_expire or days_to_expire_mapping
+  - If days_to_expire_start == valid_from
+  	- Set expire to MISP valid _ from + days from either days_to_expire or days_to_expire_mapping
 
 **Script output**
 
@@ -390,15 +275,19 @@ verbose_log = False
 write_parsed_indicators = False      # Upload Indicators only
 ```
 
+**Whitelisted URLS**
+
+The list of URLs which need to be whitelisted are summarised under [Which URLs should I whitelist?](#which-urls-should-i-whitelist)
+
 ## Setup 
 
 ### Cron job
 
-It is best to run the integration is from the cron of user www-data.
+It is best to prepare and deploy the cron job with user www-data.
 
 ```
 # Sentinel
-00 5 * * * cd /home/misp/misp2sentinel/ ; /home/misp/misp2sentinel/venv/bin/python /home/misp/misp2sentinel/script.py
+00 5 * * * cd /home/misp/misp2sentinel/ ; /home/misp/misp2sentinel/sentinel/bin/python /home/misp/misp2sentinel/script.py
 ```
 
 ## Integration details
@@ -597,7 +486,7 @@ Almost all MISP objects are translated, but there can be situations where the MI
 This little Python snippet can help you find out if elements are correctly translated. Adjust `misp_event_filters` to query only for the event with a non-default object.
 
 ```
-misp = ExpandedPyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
+misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
 misp_page = 1
 config.misp_event_limit_per_page = 100
 result = misp.search(controller='events', return_format='json', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
@@ -673,6 +562,18 @@ This error occurs when the client_id, tenant, client_secret or workspace_id are 
 ### Error: Unable to process indicator. Invalid indicator type or invalid valid_until date.
 
 If the error is followed with the message `Ignoring non STIX pattern type yara` then this means that there’s an indicator type that’s not accepted by Sentinel, in this case **yara**.
+
+### Which URLs should I whitelist?
+
+The MISP2Sentinel requires access to a number of web resources.
+
+- MISP
+  - HTTPS access to your MISP server, either via localhost (127.0.0.1) or from remote
+- HTTPS access to these Azure resources
+  - sentinelus.azure-api.net
+  - login.microsoftonline.com
+  - graph.microsoft.com/.default
+  - management.azure.com
 
 ## Additional documentation
 
