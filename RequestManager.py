@@ -44,7 +44,6 @@ class RequestManager:
             self.existing_indicators_hash = {}
             self.expiration_date = self._get_expiration_date_from_config()
         self.hash_of_indicators_to_delete = copy.deepcopy(self.existing_indicators_hash)
-        print(config.ms_auth[SCOPE])
         access_token = self._get_access_token(
             config.ms_auth[TENANT],
             config.ms_auth[CLIENT_ID],

@@ -24,7 +24,7 @@ keyVaultName = "<unique-name>"
 # Microsoft section
 #
 ms_auth = {
-    'tenant': '<tenant>>',
+    'tenant': '<tenant>',
     'client_id': '<client_id>',
     'client_secret': '<client_secret>',
     'graph_api': False,                                 # Set to False to use Upload Indicators API   
