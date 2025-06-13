@@ -19,7 +19,7 @@ Create an **Azure App** and a **Key Vault**.
    * Add an new client secret and note it down
 2. Create a [Key Vault](https://portal.azure.com/#browse/Microsoft.KeyVault%2Fvaults) in your Azure subscription
    * If you get *The operation is not allowed by RBAC. If role assignments were recently changed, please wait several minutes for role assignments to become effective* then add yourself as **Key Vault Administrator**
-   * Make sure to use *Azure role-based access control (recommended)* as the Permission model (under Settings, Access configuration).
+   * Make sure to use **Azure role-based access control (recommended)** as the Permission model (under Settings, Access configuration).
 3. Add new secrets to the vault.
    * A new secret with the name `tenants` and the following value
 
