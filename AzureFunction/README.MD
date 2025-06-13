@@ -21,7 +21,7 @@ Create an **Azure App** and a **Key Vault**.
    * If you get *The operation is not allowed by RBAC. If role assignments were recently changed, please wait several minutes for role assignments to become effective* then add yourself as **Key Vault Administrator**
    * Make sure to use **Azure role-based access control (recommended)** as the Permission model (under Settings, Access configuration).
 3. Add new secrets to the vault.
-   * A new secret with the name `tenants` and the following value
+   * A new secret with the name `tenants` and the following value (store the value as a string, meaning the JSON blog between quotes)
 
 ```json
 [
