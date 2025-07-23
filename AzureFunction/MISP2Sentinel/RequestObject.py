@@ -1,4 +1,3 @@
-from distutils.command.config import config
 import MISP2Sentinel.config as config
 from MISP2Sentinel.constants import *
 from datetime import datetime, timedelta

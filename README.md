@@ -36,7 +36,7 @@ Register a new **application** in the Microsoft [Application Registration Portal
 2. Choose **New registration**.
 3. Enter an application name, and choose **Register**. ![docs/misp2sentinel_appreg1.png](/docs/misp2sentinel_appreg1.png)
 4. Note the **Application ID** (client) and **Directory ID** (tenant)
-5. Under **Certificates & secrets**, choose **New client secret** and add a description. A new secret will be displayed in the **Value** column. Copy this password, it will not be shown again.
+5. Under Manage, **Certificates & secrets**, choose **New client secret** and add a description. A new secret will be displayed in the **Value** column. Copy this password, it will not be shown again.
 
 Grant the Azure App **Microsoft Sentinel Contributor** permissions for the workspaces you want to connect to. 
 
