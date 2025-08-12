@@ -2,7 +2,7 @@
 
 This step-by-step instruction guides you through the process of setting up a complete Azure Function that will acquire Threat Intelligence from a MISP source, sanitize it, then writes it to 1 or multiple Microsoft Sentinel instances. 
 
-> This guide was originally written by [zolderik](https://github.com/zolderio/misp-to-sentinel/blob/main/INSTALL.md), I've made some changes to work with my updated version.
+> This guide was originally written by [zolderik](https://github.com/zolderio/misp-to-sentinel/blob/main/INSTALL.md) and previously updated by [pensivepaddle](https://github.com/pensivepaddle), I've made some updates to reflect what is working now.
 
 The complete setup consists of several Azure components:
 
@@ -32,6 +32,13 @@ This is how to create and configure the app registration:
 8. Copy the value of the new Client Secret, which need to be stored in an Azure Key Vault
 9. [Add the created app registration to the Microsoft Sentinel Contributor role](https://learn.microsoft.com/nb-no/azure/sentinel/connect-threat-intelligence-upload-api#assign-a-role-to-the-application) on the relevant workspaces.
 
+> **NOTE**: Store these values below somewhere handy as we will need them in the next few steps.
+
+- **TENANT_ID** = the value stated at _Directory (tenant) ID_ in the App Registration overview
+- **APP_ID** = the value stated at _Application (client) ID_ in the App Registration overview
+- **APP_SECRET** = the value you copied in the last step in creating the App Registration
+- **WORKSPACE_ID** = the workspace id of the Sentinel workspace you want to write to
+
 ### Making the App Registration multi-tenant
 
 To make the app registration work in the other tenants you will need to grant admin consent to the enterprise app in each tenant. Please note that this will require you to add a redirect URL in the app registrations configuration, like `https://portal.azure.com`.
@@ -50,14 +57,18 @@ This is how to create a Key Vault and store the secret value in it:
 2. Click *Create key vault*
 3. Configure the Key vault as you wish, pay attention to the region in which it is stored, for instance "West Europe"
 
-### Formatting the Secret value
+### Add secrets to the Key Vault
+
+1. After creating the Key vault, under Objects click Keys and create a new key
+2. Enter the values that were copied from App Registration Secrets above
+- the name of the key **MUST** be `tenants`
+- The *Secret Value* will be the formatted secret value you created above
+- Other settings can be left to default values
+3. Add a new secret `mispkey` with the value of the API key of your MISP instance
+
+#### Formatting the Secret value
 
 From above App Registration, 3 elements are required to store in Keyvault a value in the correct format to make the script able to properly make use of the app.
-
-- **TENANT_ID** = the value stated at _Directory (tenant) ID_ in the App Registration overview
-- **APP_ID** = the value stated at _Application (client) ID_ in the App Registration overview
-- **APP_SECRET** = the value you copied in the last step in creating the App Registration
-- **WORKSPACE_ID** = the workspace id of the Sentinel workspace you want to write to
 
 The combined value that should be stored in the Keyvault, is as follows, where the variable names including the <> should be replaced by above 3 values.
 
