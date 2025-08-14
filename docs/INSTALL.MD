@@ -122,14 +122,17 @@ This is how the create the Azure Function app.
 6. Select the *Secret permissions* tab and choose *Get* and *List* from the options
 7. Select the *Select principal* tab and search for the name of the Azure Function
 8. Click *Add* and *Save*
-9. Go back to the Azure Function and click on *Configuration*
-10. Add a new application setting with the name `tenants` and the Key Vault reference string `@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/tenants/)`
-11. Add a new application setting with the name `mispkey` and the Key Vault reference string `@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/mispkey/)`
-12. Add a new application setting with the name `mispurl` and the value of the URL of your MISP instance
-13. Add a new application setting with the name `timerTriggerSchedule`
+9. Go back to the Azure Function, select `Access Control`> `Add role assignment` > `Privileged administrator roles` and select *Contributor*. Select next and assign yourself and then select *Review + assign*. 
+10. Go back to  `Access Control`> `Add role assignment` and under *Job function roles*, select *Website Contributor* and assign yourself.
+11. Go back to the Azure Function, select *Settings* and click on *Environment variables*
+12. Add a new application setting with the name `tenants` and the Key Vault reference string `@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/tenants/)`
+13. Add a new application setting with the name `mispkey` and the Key Vault reference string `@Microsoft.KeyVault(SecretUri=https://<keyvaultname>.vault.azure.net/secrets/MISP-Key/)`
+14. Add a new application setting with the name `mispurl` and the value of the URL of your MISP instance
+15. Add a new application setting with the name `timerTriggerSchedule`
    * The `timerTriggerSchedule` takes a cron expression. For more information, see [Timer trigger for Azure Functions](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-timer?tabs=python-v2%2Cin-process&pivots=programming-language-python).
    * Run once every two hours cron expression: `0 */2 * * *`
-14. Add a new application setting with the name `AzureFunctionsJobHost__functionTimeout` and set the value to `00:10:00` if using the consumption plan, or `02:00:00` if using premium or dedicated plans. This setting is required to prevent the function from timing out when processing large amounts of data.
+16. Add a new application setting with the name `key_vault_name` and the value of *JUST* the name of the key vault.
+17. Add a new application setting with the name `AzureFunctionsJobHost__functionTimeout` and set the value to `00:10:00` if using the consumption plan, or `02:00:00` if using premium or dedicated plans. This setting is required to prevent the function from timing out when processing large amounts of data.
 
 ### Upload the Function Code with Visual Studio Code
 
