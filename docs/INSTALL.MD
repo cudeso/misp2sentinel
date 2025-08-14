@@ -7,7 +7,7 @@ This step-by-step instruction guides you through the process of setting up a com
 The complete setup consists of several Azure components:
 
 1. **App Registration** - This app will get the permissions to write data to the ThreatIndicatores table of Sentinel
-2. **Keyvault** - contains the keys to automatically authenticate with the app registration
+2. **Key Vault** - contains the keys to automatically authenticate with the app registration
 3. **Function** - contains the scripts to retrieve information from a MISP source in interval, rewrite it to useful data and than place it in Sentinel through the app registration
 4. **OPTIONAL - NAT Gateway** - Optional component allowing the Azure Function to connect to MISP from a fixed IP-address, allowing it to be added to an access control list that might be protecting the MISP server
 
