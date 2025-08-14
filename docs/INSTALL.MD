@@ -82,7 +82,7 @@ For pushing to multiple Sentinel instances, you would format the secret as such:
 
 > **NOTE**: The solution currently does not support pushing to multiple workspaces within the same tenant, as the tenant id is used as the key in the dictionary.
 
-## Keyvault
+## Key Vault
 
 This is how to create a Key Vault and store the secret value in it:
 
