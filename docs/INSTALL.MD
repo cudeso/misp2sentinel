@@ -154,7 +154,7 @@ This is how the create the Azure Function app.
 6. Now that the VM is activated, run this command: `pip install -r requirements.txt`
 7. Once it is down installing everything, right click on the folder called `Azure Function` (right above MISP2Sentinel) and select *Deploy to Function App...*
 8. Select the Azure Function you created in the previous steps and click *Deploy*
-https://github.com/cudeso/misp2sentinel/blob/main/docs/vscode_deploy_azurefunction.png
+![../docs/vscode_deploy_azurefunction.png](../docs/vscode_deploy_azurefunction.png)
 
 
 ## Extra Setup for Fixed IP
