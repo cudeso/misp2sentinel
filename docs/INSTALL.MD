@@ -97,9 +97,10 @@ From above App Registration, 4 elements are required to store in Keyvault a valu
 1. After creating the Key vault, under Objects click Keys and create a new key
 2. Enter the values that were copied from App Registration Secrets above
 - the name of the key **MUST** be `tenants`
-- The *Secret Value* will be the formatted secret value you created in the
+- The *Secret Value* will be the formatted secret value you created in the [Formatting the Secret value](https://github.com/celsovidal/misp2sentinel-revamp-/blob/main/docs/INSTALL.MD#formatting-the-secret-value) section.
 - Other settings can be left to default values
-3. Add a new secret `mispkey` with the value of the API key of your MISP instance
+3. Add a new secret `MISP-Key` with the value of the API key of your MISP instance.
+4. Add a new secret `ClientSecret` with the value as the App Secret you created from the App Registration as well.
 
 
 ## Function
