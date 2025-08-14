@@ -155,7 +155,7 @@ This is how the create the Azure Function app.
 3. Install the [Azure Functions extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azurefunctions)
 4. Download the AzureFunction.zip from this repo.
 
-## Reviewing code and uploading from VSCode
+## Reviewing code and Deploying
 
 1. Open Visual Studio Code and open the folder containing this repo
 2. First check in the `requirements.txt.` file that **cryptography==43.0.3** is listed. If not, add this into the list.
