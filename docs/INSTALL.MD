@@ -147,7 +147,7 @@ This is how the create the Azure Function app.
 
 # VSCode Prep and Upload
 
-> **NOTE: These instructions are based on editing code in Windows OS. If you are on MAC, some fo these steps will vary.
+> **NOTE: These instructions are based on editing code in Windows OS. If you are on MAC, some of these steps will vary.
 
 ## Download VSCode and Python3
 1. Verify you have python3 (specifically version 3.10) installed on your system. If not download and install [python 3.10](https://www.python.org/downloads/release/python-31018/)
