@@ -2,7 +2,7 @@
 
 This step-by-step instruction guides you through the process of setting up a complete Azure Function that will acquire Threat Intelligence from a MISP source, sanitize it, then writes it to 1 or multiple Microsoft Sentinel instances. 
 
-> #READ ME
+### READ ME
 > This guide was originally written by [zolderik](https://github.com/zolderio/misp-to-sentinel/blob/main/INSTALL.md) and previously updated by [pensivepaddle](https://github.com/pensivepaddle). I've ([celsovidal](https://github.com/celsovidal)) made some updates to reflect what I had done in order to get the function app working as of **August 2025**.
 
 The complete setup consists of several Azure components:
