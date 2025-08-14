@@ -6,13 +6,9 @@ This step-by-step instruction guides you through the process of setting up a com
 
 The integration relies on [MISP-STIX](https://github.com/MISP/misp-stix) to handle the conversion between MISP and STIX format.
 
-![docs/base-MISP2Sentinel.png](docs/base-MISP2Sentinel.png)
-
 ### Microsoft Azure Market Place
 
 [misp2sentinel](https://github.com/cudeso/misp2sentinel) is available in the Microsoft Market Place or [Microsoft Sentinel Content Hub](https://portal.azure.com/#create/microsoftsentinelcommunity.azure-sentinel-solution-misp2sentinel)
-
-![docs/misp2sentinel.png-1](docs/misp2sentinel-1.png)
 
 ### READ ME
 > This guide was originally written by [zolderik](https://github.com/zolderio/misp-to-sentinel/blob/main/INSTALL.md) and previously updated by [pensivepaddle](https://github.com/pensivepaddle). I've ([celsovidal](https://github.com/celsovidal)) made some updates to reflect what I had done in order to get the function app working as of **August 2025**.
