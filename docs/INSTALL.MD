@@ -1,6 +1,18 @@
-# Step-by-Step Azure Function Setup
+# Step-by-Step Azure Function Setup with Azue Key Vault integration
 
-This step-by-step instruction guides you through the process of setting up a complete Azure Function that will acquire Threat Intelligence from a MISP source, sanitize it, then writes it to 1 or multiple Microsoft Sentinel instances. 
+This step-by-step instruction guides you through the process of setting up a complete Azure Function that will acquire Threat Intelligence from a MISP source, sanitize it, then writes it to 1 or multiple Microsoft Sentinel instances. It relies on **PyMISP** to get indicators from MISP and an **Azure App** to connect to Sentinel.
+
+### STIX
+
+The integration relies on [MISP-STIX](https://github.com/MISP/misp-stix) to handle the conversion between MISP and STIX format.
+
+![docs/base-MISP2Sentinel.png](docs/base-MISP2Sentinel.png)
+
+### Microsoft Azure Market Place
+
+[misp2sentinel](https://github.com/cudeso/misp2sentinel) is available in the Microsoft Market Place or [Microsoft Sentinel Content Hub](https://portal.azure.com/#create/microsoftsentinelcommunity.azure-sentinel-solution-misp2sentinel)
+
+![docs/misp2sentinel.png-1](docs/misp2sentinel-1.png)
 
 ### READ ME
 > This guide was originally written by [zolderik](https://github.com/zolderio/misp-to-sentinel/blob/main/INSTALL.md) and previously updated by [pensivepaddle](https://github.com/pensivepaddle). I've ([celsovidal](https://github.com/celsovidal)) made some updates to reflect what I had done in order to get the function app working as of **August 2025**.
