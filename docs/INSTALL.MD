@@ -134,6 +134,8 @@ This is how the create the Azure Function app.
 16. Add a new application setting with the name `key_vault_name` and the value of *JUST* the name of the key vault.
 17. Add a new application setting with the name `AzureFunctionsJobHost__functionTimeout` and set the value to `00:10:00` if using the consumption plan, or `02:00:00` if using premium or dedicated plans. This setting is required to prevent the function from timing out when processing large amounts of data.
 
+> **NOTE: Double check that the Function App is running on Python 3.10 by going to `Settings` > `Configuration` > `General settings` and look at the **Python Version** section. If it doesn't says **Pyhton 3.10**, select the dropdown and change. You will have to restart your Function App afterwards. 
+
 ### Upload the Function Code with Visual Studio Code
 
 1. Download and install [Visual Studio Code](https://code.visualstudio.com/)
