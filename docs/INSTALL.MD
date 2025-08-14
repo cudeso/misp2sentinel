@@ -28,7 +28,7 @@ The complete setup consists of several Azure components:
 - API and URL of your MISP instance
 - [Threat Intelligence Solution installed](https://learn.microsoft.com/nb-no/azure/sentinel/connect-threat-intelligence-upload-api#enable-the-threat-intelligence-upload-indicators-api-data-connector-in-microsoft-sentinel) on the Microsoft Sentinel workspace
 
-### MISP
+## MISP
 
 #### API key
 
@@ -55,7 +55,7 @@ This is how to create and configure the app registration:
 - **APP_SECRET** = the value you copied in the last step in creating the App Registration
 - **WORKSPACE_ID** = the workspace id of the Sentinel workspace you want to write to
 
-### Making the App Registration multi-tenant
+#### Making the App Registration multi-tenant
 
 To make the app registration work in the other tenants you will need to grant admin consent to the enterprise app in each tenant. Please note that this will require you to add a redirect URL in the app registrations configuration, like `https://portal.azure.com`.
 
@@ -106,7 +106,7 @@ This is how to create a Key Vault and store the secret value in it:
 2. Click *Create key vault*
 3. Configure the Key vault as you wish, pay attention to the region in which it is stored, for instance "West Europe"
 
-### Adding secrets to the Key Vault
+#### Adding secrets to the Key Vault
 
 From above App Registration, 4 elements are required to store in Keyvault a value in the correct format to make the script able to properly make use of the app.
 
@@ -123,7 +123,7 @@ From above App Registration, 4 elements are required to store in Keyvault a valu
 
 This is how the create the Azure Function app.
 
-### Create the Azure Function in the Azure Portal
+#### Create the Azure Function in the Azure Portal
 
 1. Go to the service *Function App*
 2. Click *Create* to generate a new Azure Function
@@ -152,17 +152,17 @@ This is how the create the Azure Function app.
 
 > **NOTE: Double check that the Function App is running on Python 3.10 by going to `Settings` > `Configuration` > `General settings` and look at the **Python Version** section. If it doesn't says **Pyhton 3.10**, select the dropdown and change. You will have to restart your Function App afterwards. 
 
-# VSCode Prep and Upload
+## VSCode Prep and Upload
 
 > **NOTE: These instructions are based on editing code in Windows OS. If you are on MAC, some of these steps will vary.
 
-## Download VSCode and Python3
+#### Download VSCode and Python3
 1. Verify you have python3 (specifically version 3.10) installed on your system. If not download and install [python 3.10](https://www.python.org/downloads/release/python-31018/)
 2. Download and install [Visual Studio Code](https://code.visualstudio.com/)
 3. Install the [Azure Functions extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azurefunctions)
 4. Download the AzureFunction.zip from this repo.
 
-## Reviewing code and Deploying
+#### Reviewing code and Deploying
 
 1. Open Visual Studio Code and open the folder containing this repo
 2. First check in the `requirements.txt.` file that **cryptography==43.0.3** is listed. If not, add this into the list.
@@ -175,11 +175,11 @@ This is how the create the Azure Function app.
 * ![../docs/vscode_deploy_azurefunction.png](../docs/vscode_deploy_azurefunction.png)
 
 
-## Extra Setup for Fixed IP
+# Extra Setup for Fixed IP
 
 Some MISP servers maybe protected by an access control list, making it only accessible from certain listed IP-addresses. In such cases it may be necessary for the Azure Function to be configured to connect to MISP from a fixed IP address. This is possible by making the Function to run through an Azure NAT Gateway. How to do this, has been inspired by [this description from Microsoft](https://learn.microsoft.com/en-us/azure/azure-functions/functions-how-to-use-nat-gateway), and goes as follows:
 
-### Virtual Network
+#### Virtual Network
 
 1. Go to the service *Virtual Networks*
 2. Click *Create*
@@ -191,7 +191,7 @@ Some MISP servers maybe protected by an access control list, making it only acce
 5. Click *Add VNet*
 - Select the just created Virtual Network and the *default* subnet, than click *Create*
 
-### Public IP
+#### Public IP
 
 1. Go to the service *Public IP Addresses*
 2. Click *Create*
@@ -200,7 +200,7 @@ Some MISP servers maybe protected by an access control list, making it only acce
 - The rest of the settings can be left to default values
 3. Under *Overview* the reseved IP-address can be found, save it to be send to the administrator of the MISP access control list later on
 
-### NAT Gateway
+#### NAT Gateway
 
 1. Go to the service *NAT gateways*
 2. Click *Create*
@@ -221,11 +221,11 @@ Some MISP servers maybe protected by an access control list, making it only acce
 - Click *OK*
 7. Click *Save* to save the configuration
 
-### Access Control List
+#### Access Control List
 
 Send the IP-address you copied earlier to the administrator of the MISP access control list, and wait for their confirmation.
 
-## Validation
+# Validation
 
 Once all above steps are completed, the Azure Function will retrieve data next time it turns 0:00 o'clock (or at the time you have scheduled your function to run). In the morning afterwards, this can be validated in Sentinel.
 
