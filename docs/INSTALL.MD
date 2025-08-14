@@ -1,5 +1,5 @@
 # MISP to Microsoft Sentinel integration
-### Step-by-Step Azure Function Setup with Azue Key Vault integration
+#### Step-by-Step Azure Function Setup with Azure Key Vault integration
 
 This step-by-step instruction guides you through the process of setting up a complete Azure Function that will acquire Threat Intelligence from a MISP source, sanitize it, then writes it to 1 or multiple Microsoft Sentinel instances. It relies on **PyMISP** to get indicators from MISP and an **Azure App** to connect to Sentinel.
 
@@ -27,6 +27,12 @@ The complete setup consists of several Azure components:
 - A Microsoft Sentinel Instance
 - API and URL of your MISP instance
 - [Threat Intelligence Solution installed](https://learn.microsoft.com/nb-no/azure/sentinel/connect-threat-intelligence-upload-api#enable-the-threat-intelligence-upload-indicators-api-data-connector-in-microsoft-sentinel) on the Microsoft Sentinel workspace
+
+### MISP
+
+#### API key
+
+The MISP2Sentinel integrations requires access to the MISP REST API and you need an API key to access it. Create the key under **Global Actions**, **My Profile** and then choose **Auth keys**. Add a new key. The key can be set to *read-only* as the integration does not alter MISP data.
 
 ## App Registration
 
