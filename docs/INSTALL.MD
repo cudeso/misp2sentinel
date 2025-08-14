@@ -56,7 +56,7 @@ From above App Registration, 4 elements are required to store in Keyvault a valu
 The combined value that should be stored in the Keyvault, is as follows, where the variable names including the <> should be replaced by above 3 values.
 
 ```json
-[ {"tenantId":"<TENANT_ID_WITH_APP>", "id": "<APP_ID>", "secret": "<APP_SECRET>", "workspaceid": "<WORKSPACE_ID>"} ]
+[ {"tenantId":"<TENANT_ID_WITH_APP>", "id": "<APP_ID>", "secret": "<APP_SECRET>", "workspaceId": "<WORKSPACE_ID>"} ]
 ```
 
 The format of the key value makes it possible for the Azure Function to write Threat Intel data to multiple Sentinel instances. This is useful for instance if there is a testing environment, or for any other reason multiple Sentinel instances exist.
@@ -154,6 +154,8 @@ This is how the create the Azure Function app.
 6. Now that the VM is activated, run this command: `pip install -r requirements.txt`
 7. Once it is down installing everything, right click on the folder called `Azure Function` (right above MISP2Sentinel) and select *Deploy to Function App...*
 8. Select the Azure Function you created in the previous steps and click *Deploy*
+https://github.com/cudeso/misp2sentinel/blob/main/docs/vscode_deploy_azurefunction.png
+
 
 ## Extra Setup for Fixed IP
 
