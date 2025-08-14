@@ -138,13 +138,22 @@ This is how the create the Azure Function app.
 
 # VSCode Prep and Upload
 
-### Upload the Function Code with Visual Studio Code
+## Download VSCode and Python3
+1. Verify you have python3 (specifically version 3.10) installed on your system. If not download and install [python 3.10](https://www.python.org/downloads/release/python-31018/)
+2. Download and install [Visual Studio Code](https://code.visualstudio.com/)
+3. Install the [Azure Functions extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azurefunctions)
+4. Download the AzureFunction.zip from this repo.
 
-1. Download and install [Visual Studio Code](https://code.visualstudio.com/)
-2. Install the [Azure Functions extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azurefunctions)
-3. Open Visual Studio Code and open the folder containing this repo
-4. Right click on the folder called `Azure Function` and select *Deploy to Function App...*
-5. Select the Azure Function you created in the previous steps and click *Deploy*
+## Reviewing code and uploading from VSCode
+
+1. Open Visual Studio Code and open the folder containing this repo
+2. First check in the `requirements.txt.` file that **cryptography==43.0.3** is listed. If not, add this into the list.
+3. Next we'll need to setup a python virtual environment in the VS code. First open a terminal and use `cd` command until you're in the **MISP2Sentinel** directory.
+4. You will then need to run `python -m venv sentinel` in the terminal terminal.
+5. Once completed `cd` into the **sentinel** VM you just created, then `cd` to the **Scripts** and type `.\activate`.
+6. Now that the VM is activated, run this command: `pip install -r requirements.txt`
+7. Once it is down installing everything, right click on the folder called `Azure Function` (right above MISP2Sentinel) and select *Deploy to Function App...*
+8. Select the Azure Function you created in the previous steps and click *Deploy*
 
 ## Extra Setup for Fixed IP
 
