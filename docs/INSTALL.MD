@@ -136,6 +136,8 @@ This is how the create the Azure Function app.
 
 > **NOTE: Double check that the Function App is running on Python 3.10 by going to `Settings` > `Configuration` > `General settings` and look at the **Python Version** section. If it doesn't says **Pyhton 3.10**, select the dropdown and change. You will have to restart your Function App afterwards. 
 
+# VSCode Prep and Upload
+
 ### Upload the Function Code with Visual Studio Code
 
 1. Download and install [Visual Studio Code](https://code.visualstudio.com/)
