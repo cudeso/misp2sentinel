@@ -1,5 +1,5 @@
 # MISP to Microsoft Sentinel integration
-## Step-by-Step Azure Function Setup with Azue Key Vault integration
+### Step-by-Step Azure Function Setup with Azue Key Vault integration
 
 This step-by-step instruction guides you through the process of setting up a complete Azure Function that will acquire Threat Intelligence from a MISP source, sanitize it, then writes it to 1 or multiple Microsoft Sentinel instances. It relies on **PyMISP** to get indicators from MISP and an **Azure App** to connect to Sentinel.
 
