@@ -28,6 +28,7 @@ ms_auth = {
     'client_id': '<client_id>',
     'client_secret': '<client_secret>',
     'graph_api': False,                                 # Set to False to use Upload Indicators API   
+    'new_upload_api': True,                             # New Upload Indicators API
     #'scope': 'https://graph.microsoft.com/.default',   # Scope for GraphAPI
     'scope': 'https://management.azure.com/.default',   # Scope for Upload Indicators API
     'workspace_id': '<workspace_id>'
@@ -36,7 +37,7 @@ ms_auth = {
 ms_passiveonly = False              # Graph API only
 ms_action = 'alert'                 # Graph API only
 
-ms_api_version = "2022-07-01"       # Upload Indicators API version
+ms_api_version = "2024-02-01-preview"       # Upload Indicators API version
 ms_max_indicators_request = 100     # Upload Indicators API: Throttle max: 100 indicators per request
 ms_max_requests_minute = 100        # Upload Indicators API: Throttle max: 100 requests per minute
 
