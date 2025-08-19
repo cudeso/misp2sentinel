@@ -42,11 +42,14 @@ This is how to create and configure the app registration:
 2. Go to the service App Registrations
 3. Make a new registration
 4. Give the new app a descriptive name, for instance: *misp2sentinel*. Other settings can be left to default values.
-5. Click ofter creating the app registration in the overview page under Client credentials on *add a certificate or secret*
+5. After creating the app registration go to 'Manage' > 'Certificates & secrets'.
 6. Click under Client secrets on *New client secret*
 7. Give a description, for instance *M2S Azure Function* and leave the recommeded expiry value
 8. Copy the value of the new Client Secret, which need to be stored in an Azure Key Vault
-9. [Add the created app registration to the Microsoft Sentinel Contributor role](https://learn.microsoft.com/nb-no/azure/sentinel/connect-threat-intelligence-upload-api#assign-a-role-to-the-application) on the relevant workspaces.
+9. Now navigate to **API permissions**, select `Add a permission` > `Microsoft Graph` > then `Application permissions`.
+10. You can begin typing **Threat** and then under the `ThreatIndicators`, select **ThreatIndicators.ReadWrite** and then hit **Add permission*.
+11. Once you add the permission, back at the **API permissions** page, just click `Grant admin consent` in order for the permission to activate.
+12. [Add the created app registration to the Microsoft Sentinel Contributor role](https://learn.microsoft.com/nb-no/azure/sentinel/connect-threat-intelligence-upload-api#assign-a-role-to-the-application) on the relevant workspaces.
 
 #### Required information to store for use later on.
 
@@ -67,9 +70,9 @@ To make the app registration work in the other tenants you will need to grant ad
 
 #### Formatting the Secret value
 
-From above App Registration, 4 elements are required to store in Keyvault a value in the correct format to make the script able to properly make use of the app.
+From above App Registration, 4 elements are required to store in Key Vault a value in the correct format to make the script able to properly make use of the app.
 
-The combined value that should be stored in the Keyvault, is as follows, where the variable names including the <> should be replaced by above 3 values.
+The combined value that should be stored in the Key Vault, is as follows, where the variable names including the <> should be replaced by above 3 values.
 
 ```json
 [ {"tenantId":"<TENANT_ID_WITH_APP>", "id": "<APP_ID>", "secret": "<APP_SECRET>", "workspaceId": "<WORKSPACE_ID>"} ]
@@ -108,7 +111,7 @@ This is how to create a Key Vault and store the secret value in it:
 
 #### Adding secrets to the Key Vault
 
-From above App Registration, 4 elements are required to store in Keyvault a value in the correct format to make the script able to properly make use of the app.
+From above App Registration, 4 elements are required to store in Key Vault a value in the correct format to make the script able to properly make use of the app.
 
 1. After creating the Key vault, under Objects click Keys and create a new key
 2. Enter the values that were copied from App Registration Secrets above
