@@ -234,4 +234,4 @@ Once all above steps are completed, the Azure Function will retrieve data next t
 
 1. Go to the service *Microsoft Sentinel*
 2. At the left-hand side click *Threat Intelligence*
-3. You should now get a list of thousands threat indicators, with *SecurityGraph* as the source
+3. You should now get a list of thousands threat indicators, with *MISP* as the source
