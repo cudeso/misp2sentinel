@@ -42,12 +42,12 @@ This is how to create and configure the app registration:
 2. Go to the service App Registrations
 3. Make a new registration
 4. Give the new app a descriptive name, for instance: *misp2sentinel*. Other settings can be left to default values.
-5. After creating the app registration go to 'Manage' > 'Certificates & secrets'.
+5. After creating the app registration go to `Manage` > `Certificates & secrets`.
 6. Click under Client secrets on *New client secret*
 7. Give a description, for instance *M2S Azure Function* and leave the recommeded expiry value
 8. Copy the value of the new Client Secret, which need to be stored in an Azure Key Vault
 9. Now navigate to **API permissions**, select `Add a permission` > `Microsoft Graph` > then `Application permissions`.
-10. You can begin typing **Threat** and then under the `ThreatIndicators`, select **ThreatIndicators.ReadWrite** and then hit **Add permission*.
+10. You can begin typing **Threat** and then under the `ThreatIndicators`, select **ThreatIndicators.ReadWrite** and then hit **Add permission**.
 11. Once you add the permission, back at the **API permissions** page, just click `Grant admin consent` in order for the permission to activate.
 12. [Add the created app registration to the Microsoft Sentinel Contributor role](https://learn.microsoft.com/nb-no/azure/sentinel/connect-threat-intelligence-upload-api#assign-a-role-to-the-application) on the relevant workspaces.
 
