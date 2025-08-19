@@ -18,7 +18,7 @@ The complete setup consists of several Azure components:
 
 1. **App Registration** - This app will get the permissions to write data to the ThreatIndicatores table of Sentinel
 2. **Key Vault** - contains the keys to automatically authenticate with the app registration
-3. **Function** - contains the scripts to retrieve information from a MISP source in interval, rewrite it to useful data and than place it in Sentinel through the app registration
+3. **Function** - contains the scripts to retrieve information from a MISP source in interval, rewrite it to useful data and then places it in Sentinel through the app registration
 4. **OPTIONAL - NAT Gateway** - Optional component allowing the Azure Function to connect to MISP from a fixed IP-address, allowing it to be added to an access control list that might be protecting the MISP server
 
 ## Prerequisities
@@ -131,7 +131,7 @@ This is how the create the Azure Function app.
 1. Go to the service *Function App*
 2. Click *Create* to generate a new Azure Function
 - Give the function a descriptive name
-- Choose at Publish for *Code*, and *Python* as the Runtime Stack. Again pay attention to the Region ("West Europe")
+- Choose at Publish for *Code*, and *Python* as the Runtime Stack. Again, pay attention to the Region ("West Europe")
 - OS can remain Linux
 - At plan type choose *App service plan*
 - Other settings can be left to default values. Click *Review + Create*
@@ -153,7 +153,7 @@ This is how the create the Azure Function app.
 16. Add a new application setting with the name `key_vault_name` and the value of *JUST* the name of the key vault.
 17. Add a new application setting with the name `AzureFunctionsJobHost__functionTimeout` and set the value to `00:10:00` if using the consumption plan, or `02:00:00` if using premium or dedicated plans. This setting is required to prevent the function from timing out when processing large amounts of data.
 
-> **NOTE: Double check that the Function App is running on Python 3.10 by going to `Settings` > `Configuration` > `General settings` and look at the **Python Version** section. If it doesn't says **Pyhton 3.10**, select the dropdown and change. You will have to restart your Function App afterwards. 
+> **NOTE: Double check that the Function App is running on Python 3.10 by going to `Settings` > `Configuration` > `General settings` and look at the **Python Version** section. If it doesn't says **Python 3.10**, select the dropdown and change. You will have to restart your Function App afterwards. 
 
 ## VSCode Prep and Upload
 
@@ -170,7 +170,7 @@ This is how the create the Azure Function app.
 1. Open Visual Studio Code and open the folder containing this repo
 2. First check in the `requirements.txt.` file that **cryptography==43.0.3** is listed. If not, add this into the list.
 3. Next we'll need to setup a python virtual environment in the VS code. First open a terminal and use `cd` command until you're in the **MISP2Sentinel** directory.
-4. You will then need to run `python -m venv sentinel` in the terminal terminal.
+4. You will then need to run `python -m venv sentinel` in the terminal.
 5. Once completed `cd` into the **sentinel** VM you just created, then `cd` to the **Scripts** and type `.\activate`.
 6. Now that the VM is activated, run this command: `pip install -r requirements.txt`
 7. Once it is down installing everything, right click on the folder called `Azure Function` (right above MISP2Sentinel) and select *Deploy to Function App...*
@@ -234,4 +234,4 @@ Once all above steps are completed, the Azure Function will retrieve data next t
 
 1. Go to the service *Microsoft Sentinel*
 2. At the left-hand side click *Threat Intelligence*
-3. You should now get a list of thousands threat indicators, with *MISP* as the source
+3. You should now get a list with thousands of threat indicators, all with *MISP* as the source
