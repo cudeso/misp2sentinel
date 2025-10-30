@@ -1,11 +1,7 @@
 from distutils.command.config import config
 import config
 from constants import *
-from datetime import datetime, timedelta
-import logging
-from stix2.base import STIXJSONEncoder
-from stix2.utils import STIXdatetime
-
+from datetime import datetime, timedelta, timezone
 import json
 import ipaddress
 import uuid
@@ -47,7 +43,40 @@ class RequestObject_Indicator:
         self.revoked = False
         self.pattern = self.convert_pattern(element.get("type", ""), element.get("value", ""))
         self.valid_from = self.ts_to_iso(element.get("timestamp", None))
-        self.valid_until = self.ts_to_iso(None)
+        
+        def _to_datetime(value):
+            if isinstance(value, datetime):
+                return value
+            if value is None:
+                return datetime.now(timezone.utc)
+            if isinstance(value, (int, float)):
+                try:
+                    return datetime.fromtimestamp(value, tz=timezone.utc)
+                except Exception:
+                    pass
+            if isinstance(value, str):
+                s = value.strip()
+                if s.endswith('Z'):
+                    s = s[:-1] + '+00:00'
+                try:
+                    return datetime.fromisoformat(s)
+                except Exception:
+                    try:
+                        from dateutil import parser as _parser
+                        return _parser.parse(s)
+                    except Exception:
+                        for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+                            try:
+                                return datetime.strptime(s, fmt).replace(tzinfo=timezone.utc)
+                            except Exception:
+                                continue
+            return datetime.now(timezone.utc)
+
+        days_to_expire = int(getattr(config, 'days_to_expire', 0) or 0)
+        valid_from_dt = _to_datetime(self.valid_from)
+        date_object = valid_from_dt + timedelta(days=days_to_expire)
+        self.valid_until = date_object.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
+
         self.created = self.ts_to_iso(None)
         self.modified = self.ts_to_iso(None)
         sentinel_threattype = False
@@ -67,7 +96,7 @@ class RequestObject_Indicator:
                 if config.days_to_expire_start.lower().strip() == "current_date":
                     date_object = datetime.now() + timedelta(days=days_to_expire)
                 elif config.days_to_expire_start.lower().strip() == "valid_from":
-                    date_object = self.valid_from + timedelta(days=days_to_expire)
+                    date_object = valid_from_dt + timedelta(days=days_to_expire)
                 if date_object:
                     self.valid_until = self.ts_to_iso(date_object.timestamp())
                 else:
@@ -156,6 +185,7 @@ class RequestObject_Indicator:
         attr_type = attr_type.lower()
         # Remove pipe from attribute type if configured
         if config.remove_pipe_from_misp_attribute and "|" in attr_type:
+            value = value.split("|")[0].strip()
             attr_type = attr_type.split("|")[0].strip()
 
         # File name
