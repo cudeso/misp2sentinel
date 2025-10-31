@@ -38,7 +38,7 @@ def already_in_sentinel(stix_pattern):
     }
 
     try:
-        url = f"https://management.azure.com/subscriptions/{config.ms_auth.get("subscription_id")}/resourceGroups/{config.ms_auth.get("resourceGroupName")}/providers/Microsoft.OperationalInsights/workspaces/{config.ms_auth.get("workspaceName")}/providers/Microsoft.SecurityInsights/threatIntelligence/main/queryIndicators?api-version=2025-06-01"
+        url = f"https://management.azure.com/subscriptions/{config.ms_auth.get('subscription_id')}/resourceGroups/{config.ms_auth.get('resourceGroupName')}/providers/Microsoft.OperationalInsights/workspaces/{config.ms_auth.get('workspaceName')}/providers/Microsoft.SecurityInsights/threatIntelligence/main/queryIndicators?api-version=2025-06-01"
         payload = {"filter": {"pattern": pattern}}
         payload = {"keywords": value,
                    "pageSize": 1,
@@ -70,6 +70,7 @@ def get_misp_events_upload_indicators():
     logger.debug("Query MISP for events")
     remaining_misp_pages = True
     indicator_count = 0
+    indicator_count_match_sentinel = 0
     misp_page = 1
 
     if config.write_parsed_indicators:
@@ -103,21 +104,33 @@ def get_misp_events_upload_indicators():
 
                                 misp_indicator = RequestObject_Indicator(element, misp_event, logger)
                                 #print(misp_indicator._get_dict())
+                                if misp_indicator.valid_until:
+                                    try:
+                                        vu_dt = datetime.datetime.strptime(misp_indicator.valid_until, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+                                    except Exception:
+                                        try:
+                                            vu_dt = datetime.datetime.fromisoformat(misp_indicator.valid_until.replace('Z', '+00:00'))
+                                        except Exception:
+                                            logger.debug("Unable to parse valid_until {}, skipping indicator {}".format(misp_indicator.valid_until, element["value"]))
+                                            continue
+                                    if vu_dt <= datetime.datetime.now(datetime.timezone.utc):
+                                        logger.debug("Skipping indicator because valid_until is in the past: {} {}".format(misp_indicator.valid_until, element["value"]))
+                                        continue
+
                                 if misp_indicator.pattern is not None:
                                     try:
                                         parsed = parse(misp_indicator._get_dict(), allow_custom=False)
                                         skip_to_sentinel = False
                                         if config.ms_check_if_exist_in_sentinel:
-                                            #start_time = datetime.datetime.now(datetime.timezone.utc)
-                                            #logger.debug("already_in_sentinel check start: %s", start_time.isoformat())
+                                            start_time = datetime.datetime.now(datetime.timezone.utc)
                                             in_sentinel = already_in_sentinel(misp_indicator.pattern)
-                                            #end_time = datetime.datetime.now(datetime.timezone.utc)
-                                            #logger.debug("already_in_sentinel check end: %s", end_time.isoformat())
-                                            #duration = end_time - start_time
-                                            #logger.info("already_in_sentinel check duration for %s: %s", misp_indicator.pattern, str(duration))
+                                            end_time = datetime.datetime.now(datetime.timezone.utc)
+                                            duration = end_time - start_time
+                                            logger.debug("already_in_sentinel check duration for {} {}".format(misp_indicator.pattern, str(duration)))
                                             if in_sentinel:
                                                 skip_to_sentinel = True
-                                                logger.debug("Skipping indicator already in Sentinel: %s", misp_indicator.pattern)
+                                                indicator_count_match_sentinel += 1
+                                                logger.info("Skipping indicator already in Sentinel: {}".format(misp_indicator.pattern))
                                         if not skip_to_sentinel:
                                             if config.verbose_log:
                                                 logger.debug("Add {} to list of indicators to upload".format(misp_indicator.pattern))
@@ -147,7 +160,7 @@ def get_misp_events_upload_indicators():
             remaining_misp_pages = False
             logger.error("Error when processing data from MISP {} - {} - {}".format(e, sys.exc_info()[2].tb_lineno, sys.exc_info()[1]))
 
-    return indicator_count
+    return indicator_count, indicator_count_match_sentinel
 
 
 def init_configuration():
@@ -216,7 +229,7 @@ def write_parsed_indicators(parsed_indicators):
 def main():
     logger.info("Fetching and parsing data from MISP {}".format(config.misp_domain))
     logger.info("Using Microsoft Upload Indicator API")
-    total_indicators = get_misp_events_upload_indicators()
+    total_indicators, indicator_count_match_sentinel = get_misp_events_upload_indicators()
     logger.info("Received {} indicators in MISP".format(total_indicators))
 
 
@@ -227,3 +240,6 @@ if __name__ == '__main__':
     init_configuration()
     main()
     logger.info("End MISP2Sentinel")
+    if config.ms_check_if_exist_in_sentinel:
+        logger.info("Skipped {} MISP indicators because they were already in Sentinel".format(indicator_count_match_sentinel))
+
