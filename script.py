@@ -12,6 +12,7 @@ import json
 
 from stix2 import parse, exceptions
 import requests
+import uuid
 
 if config.misp_verifycert is False:
     import urllib3
@@ -64,8 +65,14 @@ def already_in_sentinel(stix_pattern):
         return False
 
 
-def get_misp_events_upload_indicators():
+def get_misp_events_upload_indicators(event_uuid=None):
     misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
+    
+    if event_uuid:
+        misp_event_filters = {"uuid": event_uuid}
+        logger.info("Using event UUID filter: {}".format(event_uuid))
+    else:
+        misp_event_filters = config.misp_event_filters
     
     logger.debug("Query MISP for events")
     remaining_misp_pages = True
@@ -83,11 +90,11 @@ def get_misp_events_upload_indicators():
         indicator_values = []
 
         try:
-            if "limit" in config.misp_event_filters:
-                result = misp.search(controller='events', return_format='json', **config.misp_event_filters)
+            if "limit" in misp_event_filters:
+                result = misp.search(controller='events', return_format='json', **misp_event_filters)
                 remaining_misp_pages = False # Limits are set in the misp_event_filters
             else:
-                result = misp.search(controller='events', return_format='json', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
+                result = misp.search(controller='events', return_format='json', **misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
 
             if len(result) > 0:
                 logger.info("Received MISP events page {} with {} events".format(misp_page, len(result)))
@@ -227,9 +234,21 @@ def write_parsed_indicators(parsed_indicators):
         fp.write(json_formatted_str)
 
 def main():
+    event_uuid = None
+    
+    if len(sys.argv) > 1:
+        uuid_param = sys.argv[1].strip()
+        try:
+            uuid_obj = uuid.UUID(uuid_param)
+            event_uuid = str(uuid_obj)
+            logger.info("Valid UUID parameter provided: {}".format(event_uuid))
+        except ValueError:
+            logger.error("Invalid UUID parameter provided: {}. Exiting.".format(uuid_param))
+            sys.exit(1)
+    
     logger.info("Fetching and parsing data from MISP {}".format(config.misp_domain))
     logger.info("Using Microsoft Upload Indicator API")
-    total_indicators, indicator_count_match_sentinel = get_misp_events_upload_indicators()
+    total_indicators, indicator_count_match_sentinel = get_misp_events_upload_indicators(event_uuid)
     logger.info("Received {} indicators in MISP".format(total_indicators))
 
 
