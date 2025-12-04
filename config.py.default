@@ -83,3 +83,5 @@ write_parsed_indicators = False     # Upload Indicators only
 write_parsed_eventid = False
 
 misp_flatten_attributes = True      # Convert all attributes in objects to "atomic" attributes. This can help when attributes are not "mapped" in misp-stix
+
+remove_pipe_from_misp_attribute = True
