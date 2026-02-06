@@ -249,7 +249,7 @@ def main():
     logger.info("Fetching and parsing data from MISP {}".format(config.misp_domain))
     logger.info("Using Microsoft Upload Indicator API")
     total_indicators, indicator_count_match_sentinel = get_misp_events_upload_indicators(event_uuid)
-    logger.info("Received {} indicators in MISP".format(total_indicators))
+    logger.info("Pushed {} indicators from MISP to Sentinel".format(total_indicators))
 
 
 if __name__ == '__main__':
