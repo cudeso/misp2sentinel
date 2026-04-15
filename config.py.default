@@ -5,7 +5,7 @@
 
 # Key vault section
 # Key Vault name must be a globally unique DNS name
-keyVaultName = "<unique-name>"
+#keyVaultName = "<unique-name>"
 #KVUri = f"https://{keyVaultName}.vault.azure.net"
 
 # Log in with the virtual machines managed identity
@@ -16,7 +16,7 @@ keyVaultName = "<unique-name>"
 #retrieved_mispkey = client.get_secret('MISP-Key')
 #retrieved_clientsecret = client.get_secret('ClientSecret')
 
-# Set values with 
+# Set values with
 # misp_key = retrieved_mispkey.value
 # 'client_secret': retrieved_clientsecret.value
 
@@ -27,61 +27,73 @@ ms_auth = {
     'tenant': '<tenant>',
     'client_id': '<client_id>',
     'client_secret': '<client_secret>',
-    'graph_api': False,                                 # Set to False to use Upload Indicators API   
-    'new_upload_api': True,                             # New Upload Indicators API
-    #'scope': 'https://graph.microsoft.com/.default',   # Scope for GraphAPI
-    'scope': 'https://management.azure.com/.default',   # Scope for Upload Indicators API
-    'workspace_id': '<workspace_id>'
+    'new_upload_api': True,
+    'scope': 'https://management.azure.com/.default',
+    'workspace_id': '<workspace_id>',
+    # Only needed for delete-from-azure.py and ms_check_if_exist_in_sentinel
+    #'subscription_id': '<subscription_id>',
+    #'resourceGroupName': '<resource_group_name>',
+    #'workspaceName': '<workspace_name>',
 }
 
-ms_passiveonly = False              # Graph API only
-ms_action = 'alert'                 # Graph API only
-
-ms_api_version = "2024-02-01-preview"       # Upload Indicators API version
-ms_max_indicators_request = 100     # Upload Indicators API: Throttle max: 100 indicators per request
-ms_max_requests_minute = 100        # Upload Indicators API: Throttle max: 100 requests per minute
+ms_api_version = "2024-02-01-preview"
+ms_max_indicators_request = 100     # Max 100 indicators per request
+ms_max_requests_minute = 100        # Max 100 requests per minute
 
 
 ####
 # MISP section
-misp_key = '<misp api_key>'
-misp_domain = '<misp url>'
+#
+misp_key = '<misp_api_key>'
+misp_domain = '<misp_url>'
 misp_verifycert = False
 
 misp_event_filters = {
     "published": 1,
     "tags": [ "workflow:state=\"complete\""],
-    #"enforceWarninglist": True,
+    "enforceWarninglist": True,
     "includeEventTags": True,
     "publish_timestamp": "14d",
 }
 
-misp_event_limit_per_page = 100     # Upload Indicators API: Limit memory use when querying MISP for STIX packages
+misp_event_limit_per_page = 100
+
 
 ####
 # Integration settings
+#
+ignore_localtags = True
 
-ignore_localtags = True             
-network_ignore_direction = True     # Graph API only
+default_confidence = 50
 
-default_confidence = 50             # Sentinel default confidence level of indicator
+days_to_expire = 50
+days_to_expire_start = "valid_from" # Start counting from "valid_from" or "current_date"
+days_to_expire_mapping = {          # Per-type overrides for days_to_expire
+    "ipv4-addr": 180,
+    "ipv6-addr": 180,
+    "domain-name": 180,
+    "url": 365,
+}
+days_to_expire_ignore_misp_last_seen = True  # Ignore MISP last_seen and calculate expiry from days_to_expire
 
-days_to_expire = 50                 # Graph API and Upload Indicators
-days_to_expire_start = "current_date" # Upload Indicators API only. Start counting from "valid_from" | "current_date" ; 
-days_to_expire_mapping = {          # Upload indicators API only. Mapping for expiration of specific indicator types
-                    "ipv4-addr": 180,
-                    "ipv6-addr": 180,
-                    "domain-name": 180,
-                    "url": 365,
-                }
-                                    # Don't set an expiration date for files ('file')
 
+####
+# Output and debugging
+#
 log_file = "/tmp/misp2sentinel.log"
-write_post_json = False             # Graph API only
 verbose_log = False
-write_parsed_indicators = False     # Upload Indicators only
-write_parsed_eventid = False
+write_parsed_indicators = False     # Write parsed indicators to parsed_indicators.txt
+write_parsed_eventid = False        # Log event IDs being processed
+sentinel_write_response = False     # Write Sentinel error responses to sentinel_response.txt
+dry_run = False                     # Process indicators without uploading
 
-misp_flatten_attributes = True      # Convert all attributes in objects to "atomic" attributes. This can help when attributes are not "mapped" in misp-stix
 
-remove_pipe_from_misp_attribute = True
+####
+# Advanced settings
+#
+misp_flatten_attributes = True      # Flatten MISP object attributes into the event attribute list
+misp_remove_eventreports = True     # Remove event reports before processing
+remove_pipe_from_misp_attribute = True  # Strip composite attributes to the first value
+sourcesystem = "MISP"               # Source system name sent to Sentinel
+ms_useragent = "MISP-1.0"           # User-Agent header for API requests
+ms_check_if_exist_in_sentinel = False   # Check if indicator exists before uploading (slower)

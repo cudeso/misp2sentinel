@@ -1,146 +1,142 @@
-# MISP to Microsoft Sentinel integration
+# MISP to Microsoft Sentinel
 
 ## Introduction
 
-The MISP to Microsoft Sentinel integration allows you to upload indicators from MISP to Microsoft Sentinel. It relies on **PyMISP** to get indicators from MISP and an **Azure App** to connect to Sentinel. 
+MISP2Sentinel uploads threat intelligence indicators from a [MISP](https://www.misp-project.org/) instance to [Microsoft Sentinel](https://learn.microsoft.com/en-us/azure/sentinel/). It uses the [STIX objects upload API](https://learn.microsoft.com/en-us/azure/sentinel/stix-objects-api) (`https://api.ti.sentinel.azure.com`) to push indicators in STIX 2.1 format.
 
-### Upload Indicators API and Graph API
+The script queries MISP for events via [PyMISP](https://github.com/MISP/PyMISP), converts the attributes to STIX indicator objects and sends them to Sentinel in batches. Indicators appear in the Sentinel Threat Intelligence blade and can be used in analytics rules, hunting queries and workbooks.
 
-The integration supports two methods for sending threat intelligence from MISP to Microsoft Sentinel:
+![docs/misp2sentinel.png](docs/misp2sentinel.png)
 
-- The recommend [Upload Indicators API](https://learn.microsoft.com/en-us/azure/sentinel/connect-threat-intelligence-upload-api), or
-- The [deprecated](https://learn.microsoft.com/en-us/graph/migrate-azure-ad-graph-overview) Microsoft Graph API. To facilitate the transition the integration supports both APIs.
+MISP2Sentinel is also available through the [Microsoft Sentinel Content Hub](https://portal.azure.com/#create/microsoftsentinelcommunity.azure-sentinel-solution-misp2sentinel).
 
+![docs/misp2sentinel-1.png](docs/misp2sentinel-1.png)
 
-### STIX
+## Prerequisites
 
-The integration relies on [MISP-STIX](https://github.com/MISP/misp-stix) to handle the conversion between MISP and STIX format.
-
-![docs/base-MISP2Sentinel.png](docs/base-MISP2Sentinel.png)
-
-### Microsoft Azure Market Place
-
-[misp2sentinel](https://github.com/cudeso/misp2sentinel) is available in the Microsoft Market Place or [Microsoft Sentinel Content Hub](https://portal.azure.com/#create/microsoftsentinelcommunity.azure-sentinel-solution-misp2sentinel)
-
-![docs/misp2sentinel.png-1](docs/misp2sentinel-1.png)
+- **Python 3** (3.10 or later recommended)
+- A running **MISP** instance with API access
+- An **Azure tenant** with a Microsoft Sentinel workspace
+- An **Azure App registration** with the Microsoft Sentinel Contributor role
 
 ## Installation
 
-### Azure
+### 1. Azure setup
 
-#### Azure App registration
+#### Register an Azure App
 
-Register a new **application** in the Microsoft [Application Registration Portal](https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredApps).
+Register a new application in the Microsoft [Application Registration Portal](https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredApps).
 
 1. Sign in to the [Application Registration Portal](https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredApps).
 2. Choose **New registration**.
-3. Enter an application name, and choose **Register**. ![docs/misp2sentinel_appreg1.png](/docs/misp2sentinel_appreg1.png)
-4. Note the **Application ID** (client) and **Directory ID** (tenant)
-5. Under Manage, **Certificates & secrets**, choose **New client secret** and add a description. A new secret will be displayed in the **Value** column. Copy this password, it will not be shown again.
+3. Enter an application name and choose **Register**.
+   ![docs/misp2sentinel_appreg1.png](/docs/misp2sentinel_appreg1.png)
+4. Note the **Application (client) ID** and the **Directory (tenant) ID**.
+5. Under **Manage** > **Certificates & secrets**, choose **New client secret** and add a description. Copy the secret value straight away; it will not be shown again.
 
-Grant the Azure App **Microsoft Sentinel Contributor** permissions for the workspaces you want to connect to. 
+#### Assign permissions
 
-1. Navigate to the Log Analytics Workspace you with to connect to.
+The Azure App needs the **Microsoft Sentinel Contributor** role on each workspace you want to connect to.
+
+1. Navigate to the **Log Analytics workspace** you wish to connect to.
 2. Select **Access control (IAM)**.
 3. Select **Add** > **Add role assignment**.
-4. In the **Role** tab, select the **Microsoft Sentinel Contributor** role > **Next**.
-5. On the Members tab, select Assign access to > User, group, or service principal.
-6. **Select members**. By default, Microsoft Entra applications aren't displayed in the available options. To find your application, search for it by name
-7. Then select **Review + assign**.
-8. Also take note of the **Workspace ID**. You can get this ID by accessing the Overview page of the workspace.
+4. In the **Role** tab, select **Microsoft Sentinel Contributor** > **Next**.
+5. On the **Members** tab, select **Assign access to** > **User, group, or service principal**.
+6. Click **Select members**. Microsoft Entra applications are not shown by default, so search for your application by name.
+7. Select **Review + assign**.
+8. Take note of the **Workspace ID**. You can find it on the **Overview** page of the workspace.
 
 ![docs/misp2sentinel-workspaceroles.png](docs/misp2sentinel-workspaceroles.png)
 
-#### Threat intelligence data connector
+#### Install the data connector
 
-Add a **data connector**.
+1. Go to the **Sentinel** service in the Azure portal.
+2. Choose the **workspace** where you want to import indicators.
+3. Under **Content management**, click **Content hub**.
+4. Find and select the **MISP2Sentinel** solution.
+5. Click **Install/Update**.
 
-1. Go to the **Sentinel** service.
-2. Choose the **workspace** where you want to import the indicators from MISP.
-3. Under **Content management**, click on **Content hub** 
-4. Find and select the **MISP2Sentinel** solution using the list view
-5. Select the **Install/Update** button.
+#### Azure Function (optional)
 
-#### Azure Function
+Instead of running the script on a server or alongside MISP, you can run it as an Azure Function. See [AzureFunction/README.MD](AzureFunction/README.MD) for instructions.
 
-**Please note**: This step is optional and replaces the need for running the solution directly on the MISP-server itself, instead choosing to run the script in an Azure Function.
-See: [AzureFunction/README.MD](AzureFunction/README.MD)
-
-### MISP
+### 2. MISP setup
 
 #### API key
 
-The MISP2Sentinel integrations requires access to the MISP REST API and you need an API key to access it. Create the key under **Global Actions**, **My Profile** and then choose **Auth keys**. Add a new key. The key can be set to *read-only* as the integration does not alter MISP data.
+MISP2Sentinel needs an API key to read events from MISP. Create one under **Global Actions** > **My Profile** > **Auth keys**. The key can be set to *read-only* because the integration does not modify any MISP data.
 
-#### Python environment
+### 3. Python environment
 
-You need **Python3**, a Python virtual environment and PyMISP.
-
-1. Verify you have `python3` installed on your system
-2. Download the repository `git clone https://github.com/cudeso/misp2sentinel.git`
-4. Go to directory `cd misp2sentinel`
-3. Create a virtual environment `virtualenv sentinel` and activate the environment `source sentinel/bin/activate`
-4. Install the Python dependencies `pip install -r requirements.txt` 
+1. Verify that `python3` is installed on your system.
+2. Clone the repository:
+   ```
+   git clone https://github.com/cudeso/misp2sentinel.git
+   cd misp2sentinel
+   ```
+3. Create and activate a virtual environment:
+   ```
+   virtualenv sentinel
+   source sentinel/bin/activate
+   ```
+4. Install the dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
 
 ## Configuration
 
-The configuration is in `config.py`.
+All settings live in `config.py`. Copy the provided `config.py.default` to `config.py` and fill in the values described below.
 
-By default the config.py will look to use Azure Key Vault if configured, if you set a **"key_vault_name"** value in your environment variables, to the name of the Azure Key Vault you have deployed, this will be the default store for all secret and configuration values.
-
-If you do not set the above value, the config.py will then fall-back to using environment variables and lastly, values directly written inside of the config.py file.
-
-- [Guidance for assigning a Management Service Identity to Function App](https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp)
-- [Assigning your function app permissions to Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/assign-access-policy?tabs=azure-portal) - **NOTE** - you only need to assign "Secret GET" permission to your function app Management Service Identity.
+If you set the environment variable **`key_vault_name`** to the name of your Azure Key Vault, the script will attempt to read secrets from there first. Otherwise it falls back to environment variables and finally to the values in `config.py` itself.
 
 ### Microsoft settings
 
-Define the Microsoft authentication settings in **ms_auth**. The `tenant` (Directory ID), `client_id` (Application client ID), and `client_secret` (secret client value) are the values you obtained when setting up the Azure App. Set `graph_api` to False, choose as `scope` 'https://management.azure.com/.default' and set the workspace ID in `workspace_id`.
-  
-```
+The `ms_auth` dictionary holds the connection details for Sentinel. Fill in the `tenant` (Directory ID), `client_id` (Application client ID), `client_secret` (secret value) and `workspace_id` from the Azure setup steps above.
+
+`new_upload_api` **must** be set to `True`. This is the only supported upload method going forward; the legacy Graph API has been deprecated by Microsoft and will be removed in a future release.
+
+```python
 ms_auth = {
     'tenant': '<tenant>',
     'client_id': '<client_id>',
     'client_secret': '<client_secret>',
-    'graph_api': False,                                # Set to False to use Upload Indicators API    
-    #'scope': 'https://graph.microsoft.com/.default',  # Scope for GraphAPI
-    'scope': 'https://management.azure.com/.default',  # Scope for Upload Indicators API
-    'workspace_id': '<workspace_id>'
+    'new_upload_api': True,
+    'scope': 'https://management.azure.com/.default',
+    'workspace_id': '<workspace_id>',
 }
 ```
 
-- `ms_api_version = "2022-07-01"`: The API version. Leave this to "2022-07-01".
-- `ms_max_indicators_request = 100`: Throttling limits for the API. Maximum indicators that can be send per request. Max. 100.
-- `ms_max_requests_minute = 100`: Throttling limits for the API. Maximum requests per minute. Max. 100.
+### API settings
 
+```python
+ms_api_version = "2024-02-01-preview"
+ms_max_indicators_request = 100     # Maximum indicators per request (max 100)
+ms_max_requests_minute = 100        # Maximum requests per minute (max 100)
 ```
-ms_api_version = "2022-07-01"       # Upload Indicators API version
-ms_max_indicators_request = 100     # Upload Indicators API: Throttle max: 100 indicators per request
-ms_max_requests_minute = 100        # Upload Indicators API: Throttle max: 100 requests per minute
-```
+
+- `ms_api_version`: The STIX objects API version. Leave this at `"2024-02-01-preview"`.
+- `ms_max_indicators_request`: How many indicators to include in a single API call. The API allows at most 100.
+- `ms_max_requests_minute`: How many API calls to make per minute. The API allows at most 100. Combined, these settings give a maximum throughput of roughly 10,000 indicators per minute.
 
 ### MISP settings
 
-Set `misp_key` to your MISP API key and `misp_domain` to the URL of your MISP server. You can also specify if the script should validate the certificate of the misp instance with `misp_verifycert` (usually relevant for self-signed certificates)
-
-```
+```python
 misp_key = '<misp_api_key>'
 misp_domain = '<misp_url>'
-misp_verifycert = False (by default this is False, however this is determined by an environment variable set "local_mode", see config.py
+misp_verifycert = False
 ```
 
-The dictionary `misp_event_filters` defines which filters you want to pass on to MISP. Suggested settings are
-- `"published": 1`: Only include events that are published
-- `"tags": [ "workflow:state=\"complete\""]`: Only events with the workflow state 'complete'
-- `"enforceWarninglist": True`: Skip indicators that match an entry with a warninglist. This is highly recommended, but obviously also depends on if you have enable MISP warninglists.
-- `"includeEventTags": True`: Include the tags from events for additional context
-- `"publish_timestamp": "14d`: Include events published in the last 14 days
+- `misp_key`: The MISP API key you created earlier.
+- `misp_domain`: The full URL of your MISP instance, for example `https://misp.example.com`.
+- `misp_verifycert`: Set to `True` if your MISP instance uses a trusted TLS certificate, or `False` to skip certificate validation (common with self-signed certificates).
 
-Although it might be tempting keep the `publish_timestamp` to 14 days, it's better to only use the 14 (or higher) days for the initial run. Afterwards **set the publish_timestamp to a value that's equal to the frequency you synchronise** with Sentinel. Meaning, if you sync every 12 hours, set the publish_timestamp to 12h. It has no additional value to search for older events, as these have already been published previously.
+### MISP event filters
 
-There's one MISP filter commonly used that does not have an impact for this integration: **to_ids**. In MISP `to_ids` defines if an indicator is *actionable* or not. Unfortunately the REST API only supports the to_ids filter when querying for attributes. This integration queries for events. Does this mean that indicators with to_ids set to False are uploaded? No. In the Graph API version, only attributes with to_ids set to True are used. The Upload Indicators API relies on the MISP-STIX conversion of attributes (and objects). This conversion checks for the to_ids flag for indicators, the only exception being attributes part of an object (also see [#48](https://github.com/MISP/misp-stix/issues/48)).
+The `misp_event_filters` dictionary controls which MISP events are fetched. Recommended settings:
 
-```
+```python
 misp_event_filters = {
     "published": 1,
     "tags": [ "workflow:state=\"complete\""],
@@ -150,168 +146,180 @@ misp_event_filters = {
 }
 ```
 
-There's one additional setting for the Upload Indicators API and that's `misp_event_limit_per_page`. This setting defines how many events per search query are processed. Use this setting to limit the memory usage of the integration.
+- `"published": 1` fetches only published events.
+- `"tags"` lets you restrict to events with specific tags, such as a workflow state.
+- `"enforceWarninglist": True` skips indicators that match a MISP warninglist entry. This is strongly recommended, but depends on your warninglists being enabled.
+- `"includeEventTags": True` carries event-level tags over to individual indicators, giving them more context in Sentinel.
+- `"publish_timestamp": "14d"` fetches events published in the last 14 days.
 
-- `misp_event_limit_per_page = 50`
+**A note on `publish_timestamp`**: use 14 days (or more) for the initial run so that you backfill your Sentinel workspace. After that, **set this value to match your synchronisation frequency**. If you run the script every 12 hours, set it to `"12h"`. There is no benefit in re-fetching older events that have already been uploaded.
 
-### Azure Key Vault integration (only works on Azure VMs)
-
-To avoid having secrets in cleartext saved, you can integrate with an Azure Key Vault.
-1. Enable a managed identity for the virtual machine
-2. Create an Azure Key Vault
-3. Create the secrets `MISP-Key` and `ClientSecret` in the secrets tab
-4. Give the virtual machine managed identity access to the `Reader` role on the Azure Key Vault
-5. Give the same managed identity `Get` and `List` secret actions in the Access Policy
-6. Make sure to run installation of `requirements.txt` again, as this requires two new libraries:
-   * azure-keyvault-secrets
-   * azure-identity
-
-The rest of the configuration is done in `config.py`:
+### Pagination
 
 ```python
-# Code for supporting storage of secrets in key vault (only works for VMs running on Azure)
+misp_event_limit_per_page = 100
+```
+
+This setting controls how many events are fetched per MISP query. Lower it if the script consumes too much memory.
+
+### Indicator expiry
+
+```python
+days_to_expire = 50
+days_to_expire_start = "valid_from"   # "valid_from" or "current_date"
+```
+
+- `days_to_expire`: Number of days after which an indicator expires in Sentinel.
+- `days_to_expire_start`: Whether the expiry is calculated from the indicator's `valid_from` timestamp or from the current date.
+
+You can override the expiry per indicator type using `days_to_expire_mapping`:
+
+```python
+days_to_expire_mapping = {
+    "ipv4-addr": 1,
+    "ipv6-addr": 1,
+    "domain-name": 1,
+    "url": 1,
+    "file:hashes": 1,
+}
+```
+
+If `days_to_expire_ignore_misp_last_seen` is set to `True` (the default), the script ignores the `last_seen` value from MISP and always calculates expiry using `days_to_expire`. Set it to `False` to honour the MISP `last_seen` date where available.
+
+### Confidence
+
+```python
+default_confidence = 50
+```
+
+Sets the default STIX confidence value (0-100) for indicators. This can be overridden per indicator through MISP tags that use the `misp-confidence` taxonomy.
+
+### Other settings
+
+```python
+sourcesystem = "MISP"               # Source system name sent to Sentinel
+verbose_log = False                 # Enable debug-level logging
+log_file = "misp2sentinel.log"      # Path to the log file
+dry_run = False                     # Process indicators without uploading them
+write_parsed_indicators = False     # Write parsed indicators to parsed_indicators.txt
+write_parsed_eventid = False        # Log event IDs being processed
+sentinel_write_response = False     # Write Sentinel API responses to sentinel_response.txt
+remove_pipe_from_misp_attribute = True  # Strip composite attributes (e.g. filename|sha256) to the first value
+ignore_localtags = True             # Skip MISP tags marked as local
+misp_flatten_attributes = True      # Flatten MISP object attributes into the event attribute list
+misp_remove_eventreports = True     # Remove event reports from MISP events before processing
+ms_useragent = "MISP-1.0"           # User-Agent header sent to the Sentinel API
+ms_check_if_exist_in_sentinel = False   # Check if an indicator already exists in Sentinel before uploading
+```
+
+- `write_parsed_eventid`: When set to `True`, the script logs the event IDs it processes. Useful for debugging which events are being picked up by the filters.
+- `misp_remove_eventreports`: When set to `True`, event reports attached to MISP events are stripped before processing. Defaults to `True`.
+- `ms_useragent`: The User-Agent string sent with API requests. Defaults to `"MISP-1.0"`.
+- `ms_check_if_exist_in_sentinel`: When set to `True`, the script checks whether each indicator already exists in Sentinel before uploading. This avoids duplicates but adds an API call per indicator, which slows down the synchronisation. Requires `subscription_id`, `resourceGroupName` and `workspaceName` in `ms_auth` (see the [deleting indicators](#deleting-indicators-from-sentinel) section).
+
+## Running the script
+
+Make sure the virtual environment is active, then run:
+
+```
+python script.py
+```
+
+You can also process a single MISP event by passing its UUID:
+
+```
+python script.py <event-uuid>
+```
+
+### Verifying your configuration
+
+Use `check-config.py` to test connectivity to both MISP and Azure before running the main script:
+
+```
+python check-config.py
+```
+
+This will attempt to authenticate against MISP (and fetch one event) and obtain an access token from Azure, reporting any issues.
+
+### Scheduling
+
+To keep Sentinel up to date, schedule the script with cron (Linux) or Task Scheduler (Windows). For example, to run every hour:
+
+```
+0 * * * * cd /path/to/misp2sentinel && sentinel/bin/python script.py
+```
+
+## Azure Key Vault integration (optional)
+
+If you run the script on an Azure VM, you can store secrets in Azure Key Vault instead of keeping them in `config.py`.
+
+1. Enable a managed identity for the virtual machine.
+2. Create an Azure Key Vault.
+3. Add the secrets `MISP-Key` and `ClientSecret` in the Key Vault secrets tab.
+4. Give the VM's managed identity the `Reader` role on the Key Vault.
+5. Give the same managed identity `Get` and `List` permissions in the Key Vault access policy.
+6. Make sure the Key Vault libraries are installed (they are included in `requirements.txt`):
+   - `azure-keyvault-secrets`
+   - `azure-identity`
+
+Then uncomment and configure the Key Vault section in `config.py`:
+
+```python
 import os
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential
 
-# Key vault section
-# Key Vault name must be a globally unique DNS name
 keyVaultName = "<unique-name>"
 KVUri = f"https://{keyVaultName}.vault.azure.net"
 
-# Log in with the virtual machines managed identity
 credential = DefaultAzureCredential()
 client = SecretClient(vault_url=KVUri, credential=credential)
 
-# Retrieve values from KV (client secret, MISP-key most importantly)
 retrieved_mispkey = client.get_secret('MISP-Key')
 retrieved_clientsecret = client.get_secret('ClientSecret')
 ```
 
-1. Firstly, uncomment the lines in `config.py` so it matches the above
-2. Make sure the variable `keyVaultName` is set to the name of the key vault you set up earlier (this is also a good time to double check that the managed identity has the correct access to the KV)
-3. Replace the value for the `misp_key` variable:
-   ```
-   misp_key = retrieved_mispkey.value
-   ```
-4. Replace the value for the `client_secret` variable in the `ms_auth`-blob:
-   ```
-   'client_secret': retrieved_clientsecret.value
-   ```
+After that, update the relevant variables to use the retrieved values:
 
-### Integration settings
-
-The remainder of the settings deal with how the integration is handled.
-
-**Ignore local tags and network destination**
-
-These settings only apply for the Graph API:
-
-- `ignore_localtags = True `: When converting tags from MISP to Sentinel, ignore the MISP local tags (this applies to tags on event and attribute level).
-- `network_ignore_direction = True`: When set to true, not only store the indicator in the "Source/Destination" field of Sentinel (`networkDestinationIPv4, networkDestinationIPv6 or networkSourceIPv4, networkSourceIPv6`), also map in the fields without network context (`networkIPv4,networkIPv6`).
-
-```
-ignore_localtags = True             
-network_ignore_direction = True     # Graph API only
+```python
+misp_key = retrieved_mispkey.value
 ```
 
-**Indicator confidence level**
-
-- `default_confidence = 50`: The default confidence level of indicators. This is a value between 0 and 100 and is used by both the Graph API and Upload Indicators API. You can set a confidence level per indicator, but if you don't set one then this default value is used.
-  - This value is **overridden** when an attribute is tagged with the *MISP confidence level* ([MISP taxonomy](https://www.misp-project.org/taxonomies.html#_misp)). The tag is translated to a numerical confidence value (defined in `MISP_CONFIDENCE` in `constants.py`). It's possible to have more fine-grained confidence levels by adjusting the MISP taxonomy and simply adding entries to the predicate 'confidence-level'.
-
-![docs/Taxonomies_-_MISP.png](docs/Taxonomies_-_MISP.png)
-
-```
-default_confidence = 50             # Sentinel default confidence level of indicator
-```
-
-**Days to expire indicator**
-
-These settings apply to both the Graph API and Upload Indicators API.
-
-- `days_to_expire = 50`: The default number of days after which an indictor in Sentinel will expire. 
-
-For the Graph API the date is calculated based on the timestamp when the script is executed. 
-
-The expiration of indicators works slightly different for the Upload Indicators API. There are two additional settings that apply for this API:
-- `days_to_expire_start`: Define if you want to start counting the "expiration" date (defined in `days_to_expire`) from the current date (with `current_date`) or from the value specified by MISP (with `valid_from`).
-- `days_to_expire_mapping`: Is a dictionary mapping specific expiration dates for indicators (STIX patterns). The numerical value is in days. This value overrides `days_to_expire`.
-
-```
-days_to_expire = 50                 # Graph API and Upload Indicators
-days_to_expire_start = "current_date" # Upload Indicators API only. Start counting from "valid_from" | "current_date" ; 
-days_to_expire_mapping = {          # Upload indicators API only. Mapping for expiration of specific indicator types
-                    "ipv4-addr": 150,
-                    "ipv6-addr": 150,
-                    "domain-name": 300,
-                    "url": 400,
-                }
-```
-
-In MISP you can set the *first seen* and *last seen* of attributes. In the MISP-STIX conversion, last seen is translated to *valid_until*. This valid_until influences the expiration date of the indicator. If the expiration date (calculated with the above values) is after the current date, then it is ignored. In some cases it can be useful to ignore the last seen value set in MISP, and just use your own calculations of the expiration date. You can do this with `days_to_expire_ignore_misp_last_seen`. This ignores the last seen value, and calculates expiration date based on `days_to_expire` (and _mapping).
-
-In summary. 
-- If valid_until is set in MISP
-	- Set expire to valid_until
-- Else
-  - If days_to_expire_start == current_date
-  	- Set expire to "now" + days from either days_to_expire or days_to_expire_mapping
-  - If days_to_expire_start == valid_from
-  	- Set expire to MISP valid _ from + days from either days_to_expire or days_to_expire_mapping
-
-**Script output**
-
-This version of MISP2Sentinel writes its output to a log file (defined in `log_file`).
-
-If you're using the Graph API you can output the POST JSON to a log file with `write_post_json = True`. A similar option exist for the Upload Indicators API. With `write_parsed_indicators = True` it will output the parsed value of the indicators to a local file.
-
-With `verbose_log = True` you can increase the verbosity setting of the log output.
-
-```
-log_file = "/tmp/misp2sentinel.log"
-write_post_json = False             # Graph API only
-verbose_log = False
-write_parsed_indicators = False      # Upload Indicators only
-```
-
-**Whitelisted URLS**
-
-The list of URLs which need to be whitelisted are summarised under [Which URLs should I whitelist?](#which-urls-should-i-whitelist)
-
-## Setup 
-
-### Cron job
-
-It is best to prepare and deploy the cron job with user www-data.
-
-```
-# Sentinel
-00 5 * * * cd /home/misp/misp2sentinel/ ; /home/misp/misp2sentinel/sentinel/bin/python /home/misp/misp2sentinel/script.py
+```python
+'client_secret': retrieved_clientsecret.value
 ```
 
 ## Integration details
 
 ### MISP taxonomies
 
-To make the most of the Sentinel integration you have to enable these MISP taxonomies:
+To get the most out of the Sentinel integration, enable the following MISP taxonomies:
 
-- [MISP taxonomy](https://www.misp-project.org/taxonomies.html#_misp)
-- [sentinel-threattype](https://www.misp-project.org/taxonomies.html#_sentinel_threattype)
-- [kill-chain](https://www.misp-project.org/taxonomies.html#_kill_chain)
-- [diamond-model](https://www.misp-project.org/taxonomies.html#_diamond_model) *(only used with Graph API)*
+- [MISP taxonomy](https://www.misp-project.org/taxonomies.html#_misp) (used for confidence levels)
+- [sentinel-threattype](https://www.misp-project.org/taxonomies.html#_sentinel_threattype) (mapped to STIX `indicator_types`)
+- [kill-chain](https://www.misp-project.org/taxonomies.html#_kill_chain) (mapped to STIX kill chain phases)
 
-These taxonomies are used to provide additional **context** to the synchronised indicators and are strictly not necessary for the well-functioning of the integration. But they provide useful information for Sentinel users to understand what the threat is about and which follow-up actions need to be taken. 
+These taxonomies are not required for the integration to work, but they add useful context for analysts working with the indicators in Sentinel.
 
-### Attack patterns
+### How tags are mapped
 
-The attack patterns ([TTPType](https://stixproject.github.io/data-model/1.2/ttp/TTPType/) and others) are *not yet implemented by Microsoft*. This means that information from Galaxies and Clusters (such as those from MITRE) added to events or attributes are included in the synchronisation. Once there is full STIX support from Microsoft these attack patterns will be imported.
+#### Confidence level
 
-### "Created by" in Sentinel
+The default confidence value (set in `default_confidence`) can be overridden per indicator using the MISP confidence taxonomy. The tag is translated to a numerical value as defined by `MISP_CONFIDENCE` in `constants.py`.
 
-The "Created by" field refers to the UUID of the organisation that created the event in MISP. The [identity](https://stixproject.github.io/documentation/idioms/identity/) concept is not yet implemented on the Sentinel side. It is in the STIX export from MISP but as identity objects are not yet created in Sentinel, the reference is only a textual link to the MISP organisation UUID.
+![docs/Taxonomies_-_MISP.png](docs/Taxonomies_-_MISP.png)
 
-### Mappings
+#### Sentinel threat type
+
+You can tag events or attributes with the [sentinel-threattype](https://www.misp-project.org/taxonomies.html#_sentinel_threattype) taxonomy. The integration maps these tags to STIX [indicator_types](https://stixproject.github.io/data-model/1.2/indicator/IndicatorType/), which Sentinel displays as the threat type.
+
+#### Kill chain
+
+[Kill chain tags](https://www.misp-project.org/taxonomies.html#_kill_chain) are translated to STIX kill chain phases following the Lockheed Martin Cyber Kill Chain model.
+
+#### TLP
+
+TLP (Traffic Light Protocol) tags on events and attributes are translated to STIX marking definitions. An attribute-level TLP takes precedence over an event-level TLP. If no TLP tag is set at all, `tlp:white` is applied by default (configurable via `SENTINEL_DEFAULT_TLP` in `constants.py`).
 
 ![docs/attribute-tags-demo.png](docs/attribute-tags-demo.png)
 
@@ -319,270 +327,70 @@ The "Created by" field refers to the UUID of the organisation that created the e
 
 ![docs/attribute-tags-demo-sentinel2.png](docs/attribute-tags-demo-sentinel2.png)
 
-#### Confidence level
+### Controlling which tags are synchronised
 
-The numerical value from the tags of the confidence level in the ([MISP taxonomy](https://www.misp-project.org/taxonomies.html#_misp)) are translated to the indicator confidence level.
+You can control which tags get synchronised using two variables in `constants.py`:
 
-#### Sentinel threat type 
+- **`MISP_TAGS_IGNORE`**: A list of tag prefixes to exclude. It already contains the default tags added during STIX conversion, but you can extend it with your own entries.
+- **`MISP_ALLOWED_TAXONOMIES`**: A list of allowed taxonomy prefixes. Only tags belonging to these taxonomies will be included. Leave the list empty to allow all taxonomies. For example: `["tlp", "admiralty-scale", "type"]`.
 
-You can identify the Sentinel threat type on event and attribute level with the taxonomy [sentinal-threattype](https://www.misp-project.org/taxonomies.html#_sentinel_threattype). The Graph API translates the tags from the **sentinal-threattype** taxonomy to the [Sentinel](https://learn.microsoft.com/en-us/graph/api/resources/tiindicator?view=graph-rest-beta#threattype-values) values for `threattype`. In STIX (and thus also for the Upload Indicators API) there is no sentinal-threattype. In this case the integration translates the indicators to [indicator_types](https://stixproject.github.io/data-model/1.2/indicator/IndicatorType/), which the Sentinel interface then represents under Threat type.
+### Supported indicator types
 
-#### Kill Chain
+Only attributes with a STIX pattern type are synchronised. Attributes of type `yara` or `sigma`, for instance, are skipped. The list of accepted MISP attribute types is defined by `UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES` in `constants.py`.
 
-The [Kill Chain tags](https://www.misp-project.org/taxonomies.html#_kill_chain) are translated by the Graph API to the [Kill Chain values of Microsoft](https://learn.microsoft.com/en-us/graph/api/resources/tiindicator?view=graph-rest-beta#killchain-values). Note that Sentinel uses C2 and Actions instead of "Command and Control" and "Actions on Objectives". The Upload Indicators API translates them to the [STIX](https://stixproject.github.io/documentation/idioms/kill-chain/) Kill Chain entities. In addition, the integration for the Upload Indicators API will also translate the MISP category into a Kill Chain.
+### "Created by" in Sentinel
 
-#### TLP
+The "Created by" field in Sentinel refers to the UUID of the MISP organisation that created the event. Because Sentinel does not yet fully support STIX identity objects, this appears as a textual reference rather than a linked entity.
 
-The TLP (Traffic Light Protocol) tags of an event and attribute are translated to the STIX markers. If there's a TLP set on the attribute level then this takes precedence. If no TLP is set (on event or attribute), then **tlp-white** is applied (set via `SENTINEL_DEFAULT_TLP`.)
+### Flattening object attributes
 
-#### Diamond model
+When `misp_flatten_attributes` is set to `True`, the script extracts all attributes from MISP objects and treats them as standalone attributes. This means you lose some contextual information (although a comment is added noting which object the attribute belonged to), but it ensures that every attribute that can be converted to a STIX indicator is synchronised.
 
-The Graph API translates the tags from the **diamond-model** taxonomy to [Sentinel](https://learn.microsoft.com/en-us/graph/api/resources/tiindicator?view=graph-rest-beta#diamondmodel-values). properties for `diamondModel`. The Diamond model is not used by the Upload Indicators API.
+## Network access
 
-#### Threat actors
+MISP2Sentinel needs outbound HTTPS access to the following hosts:
 
-The Graph API translates the MISP attributes **threat-actor** to Sentinel properties for `activityGroupNames`. The MISP attributes **comment** are added to the Sentinel `description`. This is not used by the Upload Indicators API. Future versions of the Microsoft API will support attack patterns etc.
+- Your MISP server
+- `login.microsoftonline.com` (Azure authentication)
+- `api.ti.sentinel.azure.com` (STIX objects upload API)
+- `management.azure.com` (used by `delete-from-azure.py` and the "check if exists" feature)
 
-#### Ignored types
+## Troubleshooting
 
-Only indicators of type `stix` are used, as such the attributes of type `yara` or `sigma` are not synchronised.
+### My indicator does not appear in Sentinel
 
-#### Expiration date
+Check the following:
 
-For the Upload Indicators API:
-- If the attribute type is in `days_to_expire_mapping`, use the days defined in the mapping
-- If the there is no mapping, then use the default `days_to_expire`
-- Start counting from today if `days_to_expire_start` is "current_date" (or from the "valid_from" time)
-- If the end count date is beyond the date set in "valid_until", then discard the indicator
-
-The `valid_until` value is set in MISP with the `last_seen` of an attribute. Depending on your use case you might want to ignore the `last_seen` of an attribute, and consequently ignore the  `valid_until` value. Do this by setting the configuration option `days_to_expire_ignore_misp_last_seen` to True.
-
-```
-days_to_expire_ignore_misp_last_seen = True
-```
-
-#### Attribute mapping
-
-The attribute type matchings are defined in `constants.py`. 
-
-```
-ATTR_MAPPING = {
-    'AS': 'networkSourceAsn',
-    'email-dst': 'emailRecipient',
-    'email-src-display-name': 'emailSenderName',
-    'email-subject': 'emailSubject',
-    'email-x-mailer': 'emailXMailer',
-    'filename': 'fileName',
-    'malware-type': 'malwareFamilyNames',
-    'mutex': 'fileMutexName',
-    'port': 'networkPort',
-    'published': 'isActive',
-    'size-in-bytes': 'fileSize',
-    'url': 'url',
-    'user-agent': 'userAgent',
-    'uuid': 'externalId',
-    'domain': 'domainName',
-    'hostname': 'domainName'
-}
-```
-
-There are also special cases covered in other sections of the Python code.
-
-```
-MISP_SPECIAL_CASE_TYPES = frozenset([
-    *MISP_HASH_TYPES,
-    'url',
-    'ip-dst',
-    'ip-src',
-    'domain|ip',
-    'email-src',
-    'ip-dst|port',
-    'ip-src|port'
-])
-```
-
-- ip-dst and ip-src
-- - mapped to either `networkDestinationIPv4`, `networkDestinationIPv6` or `networkSourceIPv4`, `networkSourceIPv6`
-- - if the configuration value `network_ignore_direction` is set to true then the indicator is also mapped to `networkIPv4`,`networkIPv6`
-- domain|IP
-- - Mapped to a domain and an IP `domainName`
-- - An IP without a specification of a direction `networkIPv4`, `networkIPv6`
-- email-src
-- - Mapped to a sender address `emailSenderAddress`
-- - And to a source domain `emailSourceDomain`
-- ip-dst|port and ip-src|port
-- - apped to either `networkDestinationIPv4`, `networkDestinationIPv6` or `networkSourceIPv4`, `networkSourceIPv6`
-- - if the configuration value `network_ignore_direction` is set to true then the indicator is also mapped to `networkIPv4`, `networkIPv6`
-- - The port is mapped to `networkSourcePort`, `networkDestinationPort`
-- - if the configuration value `network_ignore_direction` is set to true then the indicator is also mapped to `networkPort`
-- url
-- - MISP URL values that do not start with http or https or changed to start with http. Azure does not accept URLs that do not start with http
-
-The supported hashes are defined in the set `MISP_HASH_TYPES`.
-
-
-### Detailed workflow for Upload Indicators API
-
-The integration workflow is as follows:
-
-- `script.py`
-  - The `main` function starts the request for the MISP events via `_get_misp_events_stix()`
-  - In `_get_misp_events_stix()` the MISP REST API is queried for events matching your search queries (defined in `misp_event_filters`)
-  - This REST API returns a **paged** result in **JSON** format
-    - **DEBUG**: If you get the message `Received MISP events page {} with {} events` in the log then the script was successful in querying MISP events
-    - The function loops through the events, as long as the result set is not empty. 
-      - If it is empty, then `remaining_misp_pages` is set to False, exiting the loop
-      - If you provided a limit in `misp_event_filters`, then events are queried in one go
-      - Note that the MISP REST API supports returning STIX2 format, but at the time of development the API didn't handle requests for non-existing pages (pages with a result set of 0 events; the API does not return the number of pages, so you have to query until the result set is 0)
-      - This was raised as a bug report with [issue 44](https://github.com/MISP/misp-stix/issues/44) in misp-stix and solved with [MISP/MISP@18fd906](https://github.com/MISP/MISP/commit/18fd906e52065e8a46b06c420c562d957459d639)
-        - On the roadmap withissue [issue 52](https://github.com/cudeso/misp2sentinel/issues/52)
-  - In `RequestObject_Event` the event tags are converted to tags, the event name is set and a TLP is set
-  - For each event, it will **parse and convert the JSON to STIX** with `MISPtoSTIX21Parser` with the function `parse_misp_event()` (this is part of misp-stix)
-  - This conversion returns **stix_objects**. If the conversion returns errors, the script will continue. The reason is that we want the upload to continue, even if the conversion for one event fails.
-    - **DEBUG** You can track these errors with the message `Error when processing data in event {} from MISP {}`
-  - It then loops through the stix objects
-    - Only valid types for uploading to the Upload Indicators API are considered
-      - An invalid type is ignored and processing continues
-      - For example indicators of type YARA are ignored, but other indicators in the event should still be processed
-    - For each indicator, the class `RequestObject_Indicator` is instantiated
-      - This sets the description to refer to the event
-      - Converts the MISP tags to labels, removing some of the non-relevant tags
-      - Adds the confidence level
-      - Sets the sentinel-threattype, kill chain and tlp labels
-      - Adds a reference to the MISP event
-      - Sets the expiration date of the attribute
-    - Only if there is a valid expiration date of the indicator (either calculated or set in the threat event), the indicator is considered
-      - Errors are logged with `Skipping indicator because valid_until was not set by MISP/MISP2Sentinel {}`
-    - Valid indicators are added to the list `result_set`
-  - When all indicators are processed, it logs `Processed {} indicators` (if debug is set to True)
-  - When all remaining pages with results are processed, it logs `Received {} indicators in MISP`
-  - Then `upload_indicators()` from `RequestManager` is called
-    - At this stage the script will start interacting with Microsoft Sentinel. All actions before this step are "local", related to MISP
-    - It takes into account the upload limits. If it needs to wait an message is logged with `Pausing upload for API request limit {}`.    
-  - It starts processing all `processed_indicators`
-    - Uploads are done in batches of `config.ms_max_indicators_request` indicators
-    - A POST request is done to Microsoft Sentinel
-      - If the HTTP status code is not 200, or if the "error" key is in the response then something went wrong. This is logged with `Error when submitting indicators. {}`.
-        - An error indicates the Azure App does not have sufficient permissions, or that something on the receiving (Sentinel) side is not OK.
-      - If the request was successful, it logs this with `Indicators sent - request number: {} / indicators: {} / remaining: {}`
-  - When it's done, it will log `Finished uploading indicators`
-
-![docs/base-MISP2Sentinel-workflow.png](docs/base-MISP2Sentinel-workflow.png)
-
-## FAQ
-
-### I don't see my indicator in Sentinel
-
-- Is the event published?
-- Is the to_ids flag set to True?
-- Is the indicator stored in a valid attribute type (`UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES`)?
-
-### I don't see my indicator in Sentinel (2)
-
-If you are using the new Upload Indicators API then the integration with Sentinel relies on [https://github.com/MISP/misp-stix](https://github.com/MISP/misp-stix). The MISP attributes and objects are transformed to STIX objects. After that, only the `indicators` (defined in `UPLOAD_INDICATOR_API_ACCEPTED_TYPES`) are synchronised with Sentinel. As a consequence, if the conversion by MISP-STIX does not translate MISP attributes or objects to STIX objects, then the value does not get synchronised with Sentinel.
-
-Almost all MISP objects are translated, but there can be situations where the MISP object is not recognised. It is then translated to `x-misp-object` and not to an `indicator` STIX object. Elements from `x-misp-object` are not synchronised. If you run into this situation then open an issue with [https://github.com/MISP/misp-stix](https://github.com/MISP/misp-stix). Examples in the past include the [hashlookup object](https://github.com/MISP/misp-stix/issues/56).
-
-This little Python snippet can help you find out if elements are correctly translated. Adjust `misp_event_filters` to query only for the event with a non-default object.
-
-```
-misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
-misp_page = 1
-config.misp_event_limit_per_page = 100
-result = misp.search(controller='events', return_format='json', **config.misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
-misp_event=result[0]
-parser = MISPtoSTIX21Parser()
-parser.parse_misp_event(misp_event)
-stix_objects = parser.stix_objects
-for el in stix_objects:
-    print(el.type)
-    if el.type == 'indicator':
-        print(el)
-```
- 
-### I want to ignore the x-misp-object and synchronise all attribute
-
- When the option `misp_flatten_attributes` is set to **True**, the script extracts all attributes that are part of MISP objects and adds them as “atomic” attributes. You lose some contextual information (although the integration adds a comment to the attribute that it used to be part of an object) when you set this to True, but you are then sure that all attributes that can be translated to indicators in STIX are synchronised.
-
-### Can I get a copy of the requests sent to Sentinel?
-
-When you use the **Upload Indicators API** you can print the STIX package sent to Microsoft Sentinel by setting `write_parsed_indicators` to True. This writes all packages to `parsed_indicators.txt`. This file is overwritten at each execution of the script.
-
-### Can I get a copy of the response errors returned by Sentinel?
-
-When you use the **Upload Indicators API** you can print the errors returned by Sentinel by setting `sentinel_write_response` to True. This writes the response strings from Microsoft Sentinel that contain an "error" key to `sentinel_response.txt`.
-
-### An attribute with to_ids to False is sent to Sentinel
-
-With the Upload Indicators API the conversion to STIX2 is done with misp-stix. Unfortunately the current version does not take into account the to_ids flag set on attributes in objects. See [#48](https://github.com/MISP/misp-stix/issues/48).
-
-### What is tenant, client_id and workspace_id?
-
-- `tenant` is the Directory ID. Get get it by searching for **Tenant Properties** in Azure
-- `client_id` is Application client ID. Get it by listing the **App Registrations** in Azure and using the column Application (client) ID
-- `workspace_id` is the workspace ID. Get it by opening the Log Analytics workspace and the Workspace ID in the Essentials overview
-
-### I need help with the MISP event filters
-
-The blog post [Figuring out MISP2Sentinel Event Filters](https://www.infernux.no/MISP2Sentinel-EventFilters/) can help you defining the `misp_event_filters`. If you want to be more granular with time based filters then take a look at the MISP playbook [Using timestamps in MISP](https://github.com/MISP/misp-playbooks/blob/main/misp-playbooks/pb_using_timestamps_in_MISP-with_output.ipynb). And lastly, have a look at the different [MISP Open API specifications](https://www.misp-project.org/openapi/#tag/Events/operation/restSearchEvents) for the event search.
-
-### What are the configuration changes compared to the old Graph API version?
-
-| Old | New |
-|-----|-----|
-| graph_auth  | ms_auth (now requires a 'scope') |
-| targetProduct  | ms_target_product (Graph API only) |
-| action | ms_action (Graph API only) |
-| passiveOnly | ms_passiveonly (Graph API only)|
-| defaultConfidenceLevel | default_confidence |
-| | ms_api_version (Upload indicators) |
-| | ms_max_indicators_request (Upload indicators) |
-| | ms_max_requests_minute (Upload indicators) |
-| | misp_event_limit_per_page (Upload indicators) |
-| | days_to_expire_start (Upload indicators) |
-| | days_to_expire_mapping (Upload indicators) |
-| | days_to_expire_ignore_misp_last_seen (Upload indicators) |
-| | log_file (Upload indicators) |
-| | misp_remove_eventreports (Upload indicators) |
-| | sentinel_write_response (Upload indicators) |
-
-Have a look at [_init_configuration()](https://github.com/cudeso/misp2sentinel/blob/main/script.py#L145) for all the details.
-
-### I want to limit which tags get synchronised to Sentinel
-
-You can control the list of tags that get synchronised with variables in the `constants.py` file.
-
-- **MISP_TAGS_IGNORE** : A list of **tags to ignore**. This list now contains the default tags that are set automatically as "labels" during the conversion by MISP to STIX. You can add your own list here.
-- **MISP_ALLOWED_TAXONOMIES** : The list of **allowed taxonomies**. This means that if a tag is not part of the taxonomy (technically, if it does not start with `taxonomy:`), then it is ignored. If you leave the value empty then all taxonomies / tags are included. For example use `["tlp", "admiralty-scale", "type"]`
+- Is the MISP event **published**?
+- Is the `to_ids` flag set to `True` on the attribute?
+- Is the attribute type one of the supported types (listed in `UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES` in `constants.py`)?
+- Has the `valid_until` date already passed? Expired indicators are skipped.
 
 ### Error: KeyError: 'access_token'
 
-This error occurs when the client_id, tenant, client_secret or workspace_id are invalid. Check the values in the Azure App.
+This means the Azure authentication failed. Double-check that `tenant`, `client_id`, `client_secret` and `workspace_id` are correct.
 
-### Error: Unable to process indicator. Invalid indicator type or invalid valid_until date.
+### How do I find the tenant, client_id and workspace_id?
 
-If the error is followed with the message `Ignoring non STIX pattern type yara` then this means that there’s an indicator type that’s not accepted by Sentinel, in this case **yara**.
+- **`tenant`** is the Directory (tenant) ID. Search for *Tenant Properties* in the Azure portal.
+- **`client_id`** is the Application (client) ID. Find it under *App Registrations* in the Azure portal.
+- **`workspace_id`** is the Workspace ID shown on the *Overview* page of your Log Analytics workspace.
 
-### Which URLs should I whitelist?
+### Getting copies of requests and responses
 
-The MISP2Sentinel requires access to a number of web resources.
+- Set `write_parsed_indicators = True` to write the STIX indicators sent to Sentinel to `parsed_indicators.txt`. This file is overwritten on each run.
+- Set `sentinel_write_response = True` to write error responses from Sentinel to `sentinel_response.txt`.
 
-- MISP
-  - HTTPS access to your MISP server, either via localhost (127.0.0.1) or from remote
-- HTTPS access to these Azure resources
-  - sentinelus.azure-api.net
-  - login.microsoftonline.com
-  - graph.microsoft.com/.default
-  - management.azure.com
+### Help with MISP event filters
 
-## Additional documentation
+- The blog post [Figuring out MISP2Sentinel Event Filters](https://www.infernux.no/MISP2Sentinel-EventFilters/) walks through common filter configurations.
+- The MISP playbook [Using timestamps in MISP](https://github.com/MISP/misp-playbooks/blob/main/misp-playbooks/pb_using_timestamps_in_MISP-with_output.ipynb) explains time-based filters in detail.
+- The [MISP OpenAPI specification](https://www.misp-project.org/openapi/#tag/Events/operation/restSearchEvents) for event search documents all available filter parameters.
 
-* [https://www.vanimpe.eu/2022/04/20/misp-and-microsoft-sentinel/](https://www.vanimpe.eu/2022/04/20/misp-and-microsoft-sentinel/)
-* [https://techcommunity.microsoft.com/t5/microsoft-sentinel-blog/integrating-open-source-threat-feeds-with-misp-and-sentinel/ba-p/1350371](https://techcommunity.microsoft.com/t5/microsoft-sentinel-blog/integrating-open-source-threat-feeds-with-misp-and-sentinel/ba-p/1350371)
-* https://learn.microsoft.com/en-us/graph/api/tiindicators-list?view=graph-rest-beta&tabs=http
-* [Microsoft Graph Security Documentation](https://developer.microsoft.com/en-us/graph/docs/concepts/security-concept-overview)
-* [Microsoft Graph Explorer](https://developer.microsoft.com/en-us/graph/graph-explorer)
-* [https://github.com/cudeso/misp2sentinel/blob/main/docs/INSTALL.MD](https://github.com/cudeso/misp2sentinel/blob/main/docs/INSTALL.MD)
-* [https://www.infernux.no/MicrosoftSentinel-MISP2SentinelUpdate/](https://www.infernux.no/MicrosoftSentinel-MISP2SentinelUpdate/)
-* [Microsoft code samples](https://developer.microsoft.com/en-us/graph/code-samples-and-sdks)
-* [MISP to Microsoft Graph Security connector](https://www.circl.lu/doc/misp/connectors/#misp-to-microsoft-graph-security-script)
+## Additional resources
+
+- [MISP and Microsoft Sentinel](https://www.vanimpe.eu/2022/04/20/misp-and-microsoft-sentinel/)
+- [Integrating open source threat feeds with MISP and Sentinel](https://techcommunity.microsoft.com/t5/microsoft-sentinel-blog/integrating-open-source-threat-feeds-with-misp-and-sentinel/ba-p/1350371)
+- [MISP2Sentinel update](https://www.infernux.no/MicrosoftSentinel-MISP2SentinelUpdate/)
+- [Microsoft Sentinel STIX objects API](https://learn.microsoft.com/en-us/azure/sentinel/stix-objects-api)
+
