@@ -101,6 +101,6 @@ MISP_TAGS_IGNORE = ["tlp:", "misp-galaxy:", "Threat-Report", "misp:tool=\"MISP-S
 MISP_ALLOWED_TAXONOMIES = [] # empty list for all taxonomies ["tlp", "admiralty-scale", "type"]
 MISP_CONFIDENCE = {"prefix": "misp:confidence-level", "matches": {"completely-confident": 100, "confidence-cannot-be-evalued": 50, "fairly-confident": 50, "rarely-confident": 25, "unconfident": 0, "usually-confident": 75}}
 MISP_ANALYSIS = {0: "Initial", 1: "Ongoing", 2: "Completed"}
-MISP_THREATLEVEL = {1: "Low", 2: "Medium" , 3: "High", 4: "Unknown"}
+MISP_THREATLEVEL = {1: "High", 2: "Medium", 3: "Low", 4: "Undefined"}
 SENTINEL_DEFAULT_THREATTYPE = "WatchList"
 SENTINEL_DEFAULT_TLP = "tlp:clear"

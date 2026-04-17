@@ -6,7 +6,6 @@ from RequestManager import RequestManager
 from RequestObject import RequestObject_Event, RequestObject_Indicator
 from constants import *
 import sys
-import datetime
 import logging
 import json
 
@@ -18,29 +17,17 @@ if config.misp_verifycert is False:
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def already_in_sentinel(stix_pattern):
+def already_in_sentinel(stix_pattern, headers):
     pattern = stix_pattern.split('=')[0].strip().replace('[', '').replace(']', '').replace(":value", "")
     if "hashes" in pattern:
         pattern = pattern.split(":")[0].strip()
     value = stix_pattern.split('=')[1].strip().replace('[', '').replace(']', '')
     
-    rm = RequestManager(0, logger, config.ms_auth[TENANT])
-    access_token = rm._get_access_token(
-        config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
-    )
-    if not access_token:
-        logger.debug("No access token obtained for checking existing indicators in Sentinel")
+    if not headers:
         return False
-
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "user-agent": config.ms_useragent,
-        "content-type": "application/json"
-    }
 
     try:
         url = f"https://management.azure.com/subscriptions/{config.ms_auth.get('subscription_id')}/resourceGroups/{config.ms_auth.get('resourceGroupName')}/providers/Microsoft.OperationalInsights/workspaces/{config.ms_auth.get('workspaceName')}/providers/Microsoft.SecurityInsights/threatIntelligence/main/queryIndicators?api-version=2025-06-01"
-        payload = {"filter": {"pattern": pattern}}
         payload = {"keywords": value,
                    "pageSize": 1,
                    "includeDisabled": False,
@@ -54,13 +41,12 @@ def already_in_sentinel(stix_pattern):
         except Exception:
             return False
 
-        result_len = False
         if isinstance(body, dict):
             if body.get("value"):
-                result_len = len(body.get("value"))
+                return len(body.get("value")) > 0
             if body.get("results"):
-                result_len = len(body.get("results"))
-            return result_len
+                return len(body.get("results")) > 0
+        return False
     except Exception:
         return False
 
@@ -78,7 +64,23 @@ def get_misp_events_upload_indicators(event_uuid=None):
     remaining_misp_pages = True
     indicator_count = 0
     indicator_count_match_sentinel = 0
+    indicator_values = []
     misp_page = 1
+
+    sentinel_headers = None
+    sentinel_headers_expiry = 0
+    if config.ms_check_if_exist_in_sentinel:
+        rm = RequestManager(0, logger, config.ms_auth[TENANT])
+        access_token = rm._get_access_token(
+            config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
+        )
+        if access_token:
+            sentinel_headers = {
+                "Authorization": f"Bearer {access_token}",
+                "user-agent": config.ms_useragent,
+                "content-type": "application/json"
+            }
+            sentinel_headers_expiry = datetime.datetime.now().timestamp() + 3500
 
     if config.write_parsed_indicators:
         # Clear existing parsed indicators file
@@ -87,7 +89,6 @@ def get_misp_events_upload_indicators(event_uuid=None):
 
     while remaining_misp_pages:
         result_set = []
-        indicator_values = []
 
         try:
             if "limit" in misp_event_filters:
@@ -129,8 +130,15 @@ def get_misp_events_upload_indicators(event_uuid=None):
                                         parsed = parse(misp_indicator._get_dict(), allow_custom=False)
                                         skip_to_sentinel = False
                                         if config.ms_check_if_exist_in_sentinel:
+                                            if datetime.datetime.now().timestamp() > sentinel_headers_expiry:
+                                                access_token = rm._get_access_token(
+                                                    config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
+                                                )
+                                                if access_token:
+                                                    sentinel_headers["Authorization"] = f"Bearer {access_token}"
+                                                    sentinel_headers_expiry = datetime.datetime.now().timestamp() + 3500
                                             start_time = datetime.datetime.now(datetime.timezone.utc)
-                                            in_sentinel = already_in_sentinel(misp_indicator.pattern)
+                                            in_sentinel = already_in_sentinel(misp_indicator.pattern, sentinel_headers)
                                             end_time = datetime.datetime.now(datetime.timezone.utc)
                                             duration = end_time - start_time
                                             logger.debug("already_in_sentinel check duration for {} {}".format(misp_indicator.pattern, str(duration)))
@@ -250,6 +258,8 @@ def main():
     logger.info("Using Microsoft Upload Indicator API")
     total_indicators, indicator_count_match_sentinel = get_misp_events_upload_indicators(event_uuid)
     logger.info("Pushed {} indicators from MISP to Sentinel".format(total_indicators))
+    if config.ms_check_if_exist_in_sentinel:
+        logger.info("Skipped {} MISP indicators because they were already in Sentinel".format(indicator_count_match_sentinel))
 
 
 if __name__ == '__main__':
@@ -259,6 +269,4 @@ if __name__ == '__main__':
     init_configuration()
     main()
     logger.info("End MISP2Sentinel")
-    if config.ms_check_if_exist_in_sentinel:
-        logger.info("Skipped {} MISP indicators because they were already in Sentinel".format(indicator_count_match_sentinel))
 

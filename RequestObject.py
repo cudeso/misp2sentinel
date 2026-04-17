@@ -1,4 +1,3 @@
-from distutils.command.config import config
 import config
 from constants import *
 from datetime import datetime, timedelta, timezone
@@ -135,7 +134,9 @@ class RequestObject_Indicator:
 
             # Set a default Sentinel threat type
             if not sentinel_threattype:
-                if not misp_event.sentinel_threattype:
+                if misp_event.sentinel_threattype:
+                    self.indicator_types.append(misp_event.sentinel_threattype)
+                else:
                     self.indicator_types.append(SENTINEL_DEFAULT_THREATTYPE)
 
             # TLP marking, first the one from the attribute, then from the event

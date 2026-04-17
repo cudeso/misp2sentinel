@@ -3,12 +3,9 @@ import config
 import datetime
 import os
 import json
-import copy
-import hashlib
 from constants import *
 import time
 import sys
-import logging
 
 
 class RequestManager:
@@ -18,44 +15,21 @@ class RequestManager:
         self.tenant = tenant
 
     def __enter__(self):
-        try:
-            self.existing_indicators_hash_fd = open(EXISTING_INDICATORS_HASH_FILE_NAME+self.tenant+".json", 'r+')
-            self.existing_indicators_hash = json.load(self.existing_indicators_hash_fd)
-        except (FileNotFoundError, json.decoder.JSONDecodeError):
-            self.existing_indicators_hash_fd = open(EXISTING_INDICATORS_HASH_FILE_NAME+self.tenant+".json", 'w')
-            self.existing_indicators_hash = {}
-
-        try:
-            self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME+self.tenant+".txt", 'r+')
-            self.expiration_date = self.expiration_date_fd.read()
-        except FileNotFoundError:
-            self.expiration_date_fd = open(EXPIRATION_DATE_FILE_NAME+self.tenant+".txt", 'w')
-            self.expiration_date = self._get_expiration_date_from_config()
-
-        if self.expiration_date <= datetime.datetime.utcnow().strftime('%Y-%m-%d'):
-            self.existing_indicators_hash = {}
-            self.expiration_date = self._get_expiration_date_from_config()
-
         access_token = self._get_access_token(
             config.ms_auth[TENANT],
             config.ms_auth[CLIENT_ID],
             config.ms_auth[CLIENT_SECRET],
             config.ms_auth[SCOPE])
+        if not access_token:
+            raise RuntimeError("Failed to obtain access token")
         self.headers = {"Authorization": f"Bearer {access_token}", "user-agent": config.ms_useragent, "content-type": "application/json"}
         self.headers_expiration_time = self._get_timestamp() + 3500
-        self.indicators_to_be_sent = []
-        self.indicators_to_be_sent_size = 0
-        self.start_time = self.last_batch_done_timestamp = self._get_timestamp()
         if not os.path.exists(LOG_DIRECTORY_NAME):
             os.makedirs(LOG_DIRECTORY_NAME)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        True
-
-    @staticmethod
-    def _get_expiration_date_from_config():
-        return (datetime.datetime.utcnow() + datetime.timedelta(config.days_to_expire)).strftime('%Y-%m-%d')
+        pass
 
     #@staticmethod
     def _get_access_token(self, tenant, client_id, client_secret, scope):
@@ -81,9 +55,9 @@ class RequestManager:
                 self.logger.error("Exiting. No access token {} found.".format(ACCESS_TOKEN))
                 sys.exit("Exiting. No access token {} found.".format(ACCESS_TOKEN))
         except requests.exceptions.RequestException as err:
-            logging.error(f"Failed to get access token with: Tenant: {tenant} | ClientId: {client_id} | Scope: {scope} | Err: {err}")
+            self.logger.error(f"Failed to get access token: {err}")
         except Exception as e:
-            logging.error(f"An unexpected error occurred: {e}")
+            self.logger.error(f"An unexpected error occurred: {e}")
 
     def upload_indicators(self, parsed_indicators):
         requests_number = 0
@@ -91,7 +65,7 @@ class RequestManager:
         safe_margin = 3
         while len(parsed_indicators) > 0:
             if requests_number >= config.ms_max_requests_minute:
-                sleep_time = (config.ms_max_requests_minute + safe_margin) - (self._get_timestamp() - start_timestamp)
+                sleep_time = (60 + safe_margin) - (self._get_timestamp() - start_timestamp)
                 if sleep_time > 0:
                     self.logger.info("Pausing upload for API request limit {}".format(sleep_time))
                     time.sleep(sleep_time)
@@ -175,6 +149,8 @@ class RequestManager:
                 config.ms_auth[CLIENT_ID],
                 config.ms_auth[CLIENT_SECRET],
                 config.ms_auth[SCOPE])
+            if not access_token:
+                raise RuntimeError("Failed to refresh access token")
             self.headers = {"Authorization": f"Bearer {access_token}", "user-agent": config.ms_useragent, "content-type": "application/json"}
 
     @staticmethod
