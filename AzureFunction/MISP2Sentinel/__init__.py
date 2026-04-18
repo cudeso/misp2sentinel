@@ -278,8 +278,15 @@ def push_to_sentinel(tenant, id, secret, workspace):
 def pmain(logger):
     tenants_env = os.getenv('tenants', '')
     if tenants_env:
+        if tenants_env.startswith('@Microsoft.KeyVault'):
+            logger.error("Key Vault reference for 'tenants' was not resolved. Check the function app identity and Key Vault access policy.")
+            return
         tenants = json.loads(tenants_env)
         for item in tenants:
+            for key in ('tenantId', 'id', 'secret', 'workspaceId'):
+                if key not in item:
+                    logger.error("Missing key '{}' in tenants configuration. Expected keys: tenantId, id, secret, workspaceId".format(key))
+                    return
             push_to_sentinel(item['tenantId'], item['id'], item['secret'], item['workspaceId'])
     else:
         tenant = config.ms_auth[TENANT]
