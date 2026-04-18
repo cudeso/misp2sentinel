@@ -1,5 +1,9 @@
 # MISP to Microsoft Sentinel
 
+> **Important:** This version uses the **new Upload Indicators API** (STIX objects upload API). If you want the old Microsoft Graph API approach, check out the [old-msgraph branch](https://github.com/cudeso/misp2sentinel/tree/old-msgraph).
+>
+> If you do not want to use the new Upload Indicators API, set `new_upload_api` to `False` in your configuration. Note that the old approach is going to be deprecated by Microsoft.
+
 ## Introduction
 
 MISP2Sentinel uploads threat intelligence indicators from a [MISP](https://www.misp-project.org/) instance to [Microsoft Sentinel](https://learn.microsoft.com/en-us/azure/sentinel/). It uses the [STIX objects upload API](https://learn.microsoft.com/en-us/azure/sentinel/stix-objects-api) (`https://api.ti.sentinel.azure.com`) to push indicators in STIX 2.1 format.
