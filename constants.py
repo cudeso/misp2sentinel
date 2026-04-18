@@ -59,6 +59,10 @@ MISP_SPECIAL_CASE_TYPES = frozenset([
     'ip-src|port'
 ])
 
+MISP_CUSTOM_ATTRIBUTE = frozenset([
+    "iban",
+])
+
 MISP_ACTIONABLE_TYPES = frozenset([
     *ATTR_MAPPING.keys(),
     *MISP_SPECIAL_CASE_TYPES
@@ -79,7 +83,7 @@ EXPIRATION_DATE_TIME = 'expirationDateTime'
 EXPIRATION_DATE_FILE_NAME = 'expiration_date.txt'
 PARSED_INDICATORS_FILE_NAME = 'parsed_indicators.txt'
 UPLOAD_INDICATOR_API_ACCEPTED_TYPES = ['indicator']
-UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES = list(MISP_ACTIONABLE_TYPES)
+UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES = list(MISP_ACTIONABLE_TYPES) + list(MISP_CUSTOM_ATTRIBUTE)
 TLP_MARKING_OBJECT_DEFINITION={"tlp:white": "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9",
                                     "tlp:clear": "marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9",
                                     "tlp:green": "marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da",

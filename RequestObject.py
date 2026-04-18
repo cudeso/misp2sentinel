@@ -235,7 +235,10 @@ class RequestObject_Indicator:
             except ValueError:
                 return None
 
-        # Fallback: treat as an observable string (not ideal, but keeps it simple)
+        # Custom attribute types: use raw value as freetext pattern
+        if attr_type in MISP_CUSTOM_ATTRIBUTE:
+            return self._esc(value)
+
         return None
 
     def _cleanup_labels(self):

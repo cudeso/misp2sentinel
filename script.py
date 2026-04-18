@@ -17,13 +17,13 @@ if config.misp_verifycert is False:
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def already_in_sentinel(stix_pattern, headers):
+def already_in_sentinel(stix_pattern, session):
     pattern = stix_pattern.split('=')[0].strip().replace('[', '').replace(']', '').replace(":value", "")
     if "hashes" in pattern:
         pattern = pattern.split(":")[0].strip()
     value = stix_pattern.split('=')[1].strip().replace('[', '').replace(']', '')
     
-    if not headers:
+    if not session:
         return False
 
     try:
@@ -32,7 +32,7 @@ def already_in_sentinel(stix_pattern, headers):
                    "pageSize": 1,
                    "includeDisabled": False,
                    "patternTypes": [pattern]}
-        resp = requests.post(url, headers=headers, json=payload, timeout=50)
+        resp = session.post(url, json=payload, timeout=50)
         if resp.status_code != 200:
             return False
 
@@ -67,7 +67,7 @@ def get_misp_events_upload_indicators(event_uuid=None):
     indicator_values = []
     misp_page = 1
 
-    sentinel_headers = None
+    sentinel_session = None
     sentinel_headers_expiry = 0
     if config.ms_check_if_exist_in_sentinel:
         rm = RequestManager(0, logger, config.ms_auth[TENANT])
@@ -75,11 +75,12 @@ def get_misp_events_upload_indicators(event_uuid=None):
             config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
         )
         if access_token:
-            sentinel_headers = {
+            sentinel_session = requests.Session()
+            sentinel_session.headers.update({
                 "Authorization": f"Bearer {access_token}",
                 "user-agent": config.ms_useragent,
                 "content-type": "application/json"
-            }
+            })
             sentinel_headers_expiry = datetime.datetime.now().timestamp() + 3500
 
     if config.write_parsed_indicators:
@@ -126,8 +127,10 @@ def get_misp_events_upload_indicators(event_uuid=None):
                                         continue
 
                                 if misp_indicator.pattern is not None:
+                                    is_custom = element.get("type", "") in MISP_CUSTOM_ATTRIBUTE
                                     try:
-                                        parsed = parse(misp_indicator._get_dict(), allow_custom=False)
+                                        if not is_custom:
+                                            parsed = parse(misp_indicator._get_dict(), allow_custom=False)
                                         skip_to_sentinel = False
                                         if config.ms_check_if_exist_in_sentinel:
                                             if datetime.datetime.now().timestamp() > sentinel_headers_expiry:
@@ -135,10 +138,10 @@ def get_misp_events_upload_indicators(event_uuid=None):
                                                     config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
                                                 )
                                                 if access_token:
-                                                    sentinel_headers["Authorization"] = f"Bearer {access_token}"
+                                                    sentinel_session.headers["Authorization"] = f"Bearer {access_token}"
                                                     sentinel_headers_expiry = datetime.datetime.now().timestamp() + 3500
                                             start_time = datetime.datetime.now(datetime.timezone.utc)
-                                            in_sentinel = already_in_sentinel(misp_indicator.pattern, sentinel_headers)
+                                            in_sentinel = already_in_sentinel(misp_indicator.pattern, sentinel_session)
                                             end_time = datetime.datetime.now(datetime.timezone.utc)
                                             duration = end_time - start_time
                                             logger.debug("already_in_sentinel check duration for {} {}".format(misp_indicator.pattern, str(duration)))
@@ -264,9 +267,9 @@ def main():
 
 if __name__ == '__main__':
     logger = _build_logger()    
-    logger.info("Start MISP2Sentinel")
+    logger.info("====== Start MISP2Sentinel ======")
     logger.info("Initializing configuration")
     init_configuration()
     main()
-    logger.info("End MISP2Sentinel")
+    logger.info("====== End MISP2Sentinel ======")
 

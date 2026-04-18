@@ -20,6 +20,7 @@ ms_auth = {
     'tenant': tenant_id,
     'client_id': client_id,
     'client_secret': client_secret,
+    'new_upload_api': True,
     'scope': 'https://management.azure.com/.default',
     'graph_api': False,
     'workspace_id': workspace_id
