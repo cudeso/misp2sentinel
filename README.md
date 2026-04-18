@@ -334,9 +334,26 @@ You can control which tags get synchronised using two variables in `constants.py
 - **`MISP_TAGS_IGNORE`**: A list of tag prefixes to exclude. It already contains the default tags added during STIX conversion, but you can extend it with your own entries.
 - **`MISP_ALLOWED_TAXONOMIES`**: A list of allowed taxonomy prefixes. Only tags belonging to these taxonomies will be included. Leave the list empty to allow all taxonomies. For example: `["tlp", "admiralty-scale", "type"]`.
 
+#### MISP galaxies and clusters
+
+In MISP, galaxies and clusters (such as threat actors, malware families or ATT&CK techniques) are internally represented as tags. By default, galaxy tags are **not** synchronised to Sentinel because `MISP_TAGS_IGNORE` contains the `"misp-galaxy:"` prefix. This keeps the indicator labels in Sentinel concise.
+
+If you want galaxy and cluster tags to appear on your Sentinel indicators, remove `"misp-galaxy:"` from the `MISP_TAGS_IGNORE` list in `constants.py`.
+
 ### Supported indicator types
 
 Only attributes with a STIX pattern type are synchronised. Attributes of type `yara` or `sigma`, for instance, are skipped. The list of accepted MISP attribute types is defined by `UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES` in `constants.py`.
+
+#### Custom attribute types
+
+If you want to synchronise MISP attribute types that do not have a native STIX pattern (such as `iban`), you can add them to the `MISP_CUSTOM_ATTRIBUTE` frozenset in `constants.py`. These attributes are sent to Sentinel as freetext indicators, similar to the freetext indicator you can create manually in the Azure portal.
+
+Requirements:
+
+- The attribute must have the **to_ids** flag set in MISP.
+- The attribute type must be listed in `MISP_CUSTOM_ATTRIBUTE`.
+
+This is useful for indicator types like IBAN numbers, phone numbers or other identifiers that are not part of the STIX standard but that you still want to track in Sentinel.
 
 ### "Created by" in Sentinel
 
@@ -348,12 +365,17 @@ When `misp_flatten_attributes` is set to `True`, the script extracts all attribu
 
 ## Network access
 
-MISP2Sentinel needs outbound HTTPS access to the following hosts:
+MISP2Sentinel requires outbound HTTPS (port 443) access to the hosts listed below. In a corporate environment with a proxy or firewall, make sure these domains are whitelisted.
 
-- Your MISP server
-- `login.microsoftonline.com` (Azure authentication)
-- `api.ti.sentinel.azure.com` (STIX objects upload API)
-- `management.azure.com` (used by `delete-from-azure.py` and the "check if exists" feature)
+| Domain | Required | Used for |
+|--------|----------|----------|
+| Your MISP instance (e.g. `misp.example.com`) | Always | Fetching events and attributes via the MISP API |
+| `login.microsoftonline.com` | Always | Azure AD OAuth2 token acquisition |
+| `api.ti.sentinel.azure.com` | When `new_upload_api` is `True` | Uploading STIX indicators to Sentinel |
+| `sentinelus.azure-api.net` | When `new_upload_api` is `False` (legacy) | Uploading indicators via the legacy API |
+| `management.azure.com` | When using `ms_check_if_exist_in_sentinel` or `delete-from-azure.py` | Querying and deleting indicators in Sentinel |
+
+If you use Azure Key Vault for secret storage, also allow access to your vault endpoint (`<vault-name>.vault.azure.net`).
 
 ## Troubleshooting
 

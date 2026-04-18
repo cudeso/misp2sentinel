@@ -4,3 +4,7 @@
 .vscode/tasks.json
 connector/*
 config.py
+misp2sentinel.log
+sentinel/*
+parsed_indicators.txt
+*.pyc
