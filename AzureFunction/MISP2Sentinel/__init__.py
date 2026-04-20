@@ -53,6 +53,33 @@ def already_in_sentinel(stix_pattern, session):
         return False
 
 
+def _get_sentinel_session(rm):
+    access_token = rm._get_access_token(
+        config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
+    )
+    if not access_token:
+        return None, 0
+    session = requests.Session()
+    session.headers.update({
+        "Authorization": f"Bearer {access_token}",
+        "user-agent": config.ms_useragent,
+        "content-type": "application/json"
+    })
+    expiry = datetime.datetime.now().timestamp() + 3500
+    return session, expiry
+
+
+def _refresh_sentinel_session(session, expiry, rm):
+    if datetime.datetime.now().timestamp() > expiry:
+        access_token = rm._get_access_token(
+            config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
+        )
+        if access_token:
+            session.headers["Authorization"] = f"Bearer {access_token}"
+            expiry = datetime.datetime.now().timestamp() + 3500
+    return expiry
+
+
 def get_misp_events_upload_indicators():
     misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
 
@@ -69,17 +96,7 @@ def get_misp_events_upload_indicators():
     sentinel_headers_expiry = 0
     if config.ms_check_if_exist_in_sentinel:
         rm = RequestManager(0, logger, config.ms_auth[TENANT])
-        access_token = rm._get_access_token(
-            config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
-        )
-        if access_token:
-            sentinel_session = requests.Session()
-            sentinel_session.headers.update({
-                "Authorization": f"Bearer {access_token}",
-                "user-agent": config.ms_useragent,
-                "content-type": "application/json"
-            })
-            sentinel_headers_expiry = datetime.datetime.now().timestamp() + 3500
+        sentinel_session, sentinel_headers_expiry = _get_sentinel_session(rm)
 
     if config.write_parsed_indicators:
         # Clear existing parsed indicators file
@@ -130,13 +147,7 @@ def get_misp_events_upload_indicators():
                                             parsed = parse(misp_indicator._get_dict(), allow_custom=False)
                                         skip_to_sentinel = False
                                         if config.ms_check_if_exist_in_sentinel:
-                                            if datetime.datetime.now().timestamp() > sentinel_headers_expiry:
-                                                access_token = rm._get_access_token(
-                                                    config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
-                                                )
-                                                if access_token:
-                                                    sentinel_session.headers["Authorization"] = f"Bearer {access_token}"
-                                                    sentinel_headers_expiry = datetime.datetime.now().timestamp() + 3500
+                                            sentinel_headers_expiry = _refresh_sentinel_session(sentinel_session, sentinel_headers_expiry, rm)
                                             start_time = datetime.datetime.now(datetime.timezone.utc)
                                             in_sentinel = already_in_sentinel(misp_indicator.pattern, sentinel_session)
                                             end_time = datetime.datetime.now(datetime.timezone.utc)

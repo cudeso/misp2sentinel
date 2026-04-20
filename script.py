@@ -2,6 +2,7 @@ from pymisp import *
 import config
 from collections import defaultdict
 import datetime
+import argparse
 from RequestManager import RequestManager
 from RequestObject import RequestObject_Event, RequestObject_Indicator
 from constants import *
@@ -51,6 +52,154 @@ def already_in_sentinel(stix_pattern, session):
         return False
 
 
+def delete_sentinel_indicator(indicator_name, session):
+    url = (
+        f"https://management.azure.com/subscriptions/{config.ms_auth.get('subscription_id')}"
+        f"/resourceGroups/{config.ms_auth.get('resourceGroupName')}"
+        f"/providers/Microsoft.OperationalInsights/workspaces/{config.ms_auth.get('workspaceName')}"
+        f"/providers/Microsoft.SecurityInsights/threatIntelligence/main/indicators/{indicator_name}"
+        f"?api-version=2025-06-01"
+    )
+    try:
+        resp = session.delete(url, timeout=30)
+        resp.raise_for_status()
+        return True
+    except Exception as e:
+        logger.error("Exception deleting indicator from Sentinel: {} {}".format(indicator_name, e))
+        return False
+
+
+def _get_sentinel_session(rm):
+    access_token = rm._get_access_token(
+        config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
+    )
+    if not access_token:
+        return None, 0
+    session = requests.Session()
+    session.headers.update({
+        "Authorization": f"Bearer {access_token}",
+        "user-agent": config.ms_useragent,
+        "content-type": "application/json"
+    })
+    expiry = datetime.datetime.now().timestamp() + 3500
+    return session, expiry
+
+
+def _refresh_sentinel_session(session, expiry, rm):
+    if datetime.datetime.now().timestamp() > expiry:
+        access_token = rm._get_access_token(
+            config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
+        )
+        if access_token:
+            session.headers["Authorization"] = f"Bearer {access_token}"
+            expiry = datetime.datetime.now().timestamp() + 3500
+    return expiry
+
+
+def get_misp_toids_disabled(timeframe):
+    misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
+
+    logger.info("Querying MISP for attributes with to_ids=False changed in the last {}".format(timeframe))
+    results = misp.search(controller='attributes', to_ids=0, timestamp=timeframe,
+                          type_attribute=list(UPLOAD_INDICATOR_MISP_ACCEPTED_TYPES), return_format='json')
+
+    attributes = []
+    if isinstance(results, dict):
+        attributes = results.get("Attribute", results.get("response", {}).get("Attribute", []))
+    elif isinstance(results, list):
+        attributes = results
+
+    values = []
+    for attr in attributes:
+        v = attr.get("value", "")
+        if v and v not in values:
+            values.append(v)
+
+    logger.info("Found {} unique attribute values with to_ids recently set to False".format(len(values)))
+    return values
+
+
+def delete_indicators_from_sentinel(values):
+    rm = RequestManager(0, logger, config.ms_auth[TENANT])
+    session, expiry = _get_sentinel_session(rm)
+    if not session:
+        logger.error("Could not get Sentinel access token for to_ids verification")
+        return
+
+    # Batch query: fetch all MISP-sourced indicators from Sentinel in one call
+    url = (
+        f"https://management.azure.com/subscriptions/{config.ms_auth.get('subscription_id')}"
+        f"/resourceGroups/{config.ms_auth.get('resourceGroupName')}"
+        f"/providers/Microsoft.OperationalInsights/workspaces/{config.ms_auth.get('workspaceName')}"
+        f"/providers/Microsoft.SecurityInsights/threatIntelligence/main/queryIndicators"
+        f"?api-version=2025-06-01"
+    )
+
+    values_set = set(values)
+    to_delete = {}  # value -> indicator_name
+
+    skip_token = None
+    while True:
+        expiry = _refresh_sentinel_session(session, expiry, rm)
+        payload = {"pageSize": 100, "includeDisabled": False, "sources": [config.sourcesystem]}
+        if skip_token:
+            payload["skipToken"] = skip_token
+        try:
+            resp = session.post(url, json=payload, timeout=60)
+            if resp.status_code != 200:
+                logger.error("Error querying Sentinel indicators: {}".format(resp.status_code))
+                break
+            body = resp.json()
+        except Exception as e:
+            logger.error("Exception querying Sentinel indicators: {}".format(e))
+            break
+
+        indicators = body.get("value", [])
+        if not indicators:
+            break
+
+        for indicator in indicators:
+            pattern = indicator.get("properties", {}).get("pattern", "")
+            for v in list(values_set):
+                if "'{}'".format(v) in pattern:
+                    to_delete[v] = indicator.get("name")
+                    values_set.discard(v)
+
+        if not values_set:
+            break
+
+        skip_token = body.get("nextLink") or body.get("skipToken")
+        if not skip_token:
+            break
+
+    deleted_count = 0
+    for attr_value, indicator_name in to_delete.items():
+        expiry = _refresh_sentinel_session(session, expiry, rm)
+        if config.dry_run:
+            logger.info("Dry run - would delete from Sentinel: {} ({})".format(attr_value, indicator_name))
+            deleted_count += 1
+        else:
+            if delete_sentinel_indicator(indicator_name, session):
+                logger.info("Deleted from Sentinel: {} ({})".format(attr_value, indicator_name))
+                deleted_count += 1
+            else:
+                logger.error("Failed to delete from Sentinel: {} ({})".format(attr_value, indicator_name))
+
+    not_found_count = len(values_set)
+    for v in values_set:
+        logger.debug("Not found in Sentinel: {}".format(v))
+
+    logger.info("to_ids verification complete: {} deleted, {} not found in Sentinel".format(deleted_count, not_found_count))
+
+
+def verify_recent_toids_change():
+    values = get_misp_toids_disabled(config.timeframe_toids_change)
+    if values:
+        delete_indicators_from_sentinel(values)
+    else:
+        logger.info("No indicators to delete from Sentinel based on to_ids change")
+
+
 def get_misp_events_upload_indicators(event_uuid=None):
     misp = PyMISP(config.misp_domain, config.misp_key, config.misp_verifycert, False)
     
@@ -71,17 +220,9 @@ def get_misp_events_upload_indicators(event_uuid=None):
     sentinel_headers_expiry = 0
     if config.ms_check_if_exist_in_sentinel:
         rm = RequestManager(0, logger, config.ms_auth[TENANT])
-        access_token = rm._get_access_token(
-            config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
-        )
-        if access_token:
-            sentinel_session = requests.Session()
-            sentinel_session.headers.update({
-                "Authorization": f"Bearer {access_token}",
-                "user-agent": config.ms_useragent,
-                "content-type": "application/json"
-            })
-            sentinel_headers_expiry = datetime.datetime.now().timestamp() + 3500
+        sentinel_session, sentinel_headers_expiry = _get_sentinel_session(rm)
+        if not sentinel_session:
+            logger.error("Could not get Sentinel access token for existing indicator check")
 
     if config.write_parsed_indicators:
         # Clear existing parsed indicators file
@@ -133,13 +274,7 @@ def get_misp_events_upload_indicators(event_uuid=None):
                                             parsed = parse(misp_indicator._get_dict(), allow_custom=False)
                                         skip_to_sentinel = False
                                         if config.ms_check_if_exist_in_sentinel:
-                                            if datetime.datetime.now().timestamp() > sentinel_headers_expiry:
-                                                access_token = rm._get_access_token(
-                                                    config.ms_auth[TENANT], config.ms_auth[CLIENT_ID], config.ms_auth[CLIENT_SECRET], config.ms_auth[SCOPE]
-                                                )
-                                                if access_token:
-                                                    sentinel_session.headers["Authorization"] = f"Bearer {access_token}"
-                                                    sentinel_headers_expiry = datetime.datetime.now().timestamp() + 3500
+                                            sentinel_headers_expiry = _refresh_sentinel_session(sentinel_session, sentinel_headers_expiry, rm)
                                             start_time = datetime.datetime.now(datetime.timezone.utc)
                                             in_sentinel = already_in_sentinel(misp_indicator.pattern, sentinel_session)
                                             end_time = datetime.datetime.now(datetime.timezone.utc)
@@ -218,6 +353,8 @@ def init_configuration():
         config.remove_pipe_from_misp_attribute = True
     if not hasattr(config, "ms_check_if_exist_in_sentinel"):
         config.ms_check_if_exist_in_sentinel = False
+    if not hasattr(config, "timeframe_toids_change"):
+        config.timeframe_toids_change = "1d"
 
 
 
@@ -245,18 +382,26 @@ def write_parsed_indicators(parsed_indicators):
         fp.write(json_formatted_str)
 
 def main():
+    parser = argparse.ArgumentParser(description="MISP to Microsoft Sentinel indicator sync")
+    parser.add_argument("--uuid", type=str, help="Process a single MISP event by UUID")
+    parser.add_argument("--verify-recent-toids-change", action="store_true",
+                        help="Find attributes where to_ids was recently set to False and delete them from Sentinel")
+    args = parser.parse_args()
+
     event_uuid = None
-    
-    if len(sys.argv) > 1:
-        uuid_param = sys.argv[1].strip()
+    if args.uuid:
         try:
-            uuid_obj = uuid.UUID(uuid_param)
+            uuid_obj = uuid.UUID(args.uuid.strip())
             event_uuid = str(uuid_obj)
             logger.info("Valid UUID parameter provided: {}".format(event_uuid))
         except ValueError:
-            logger.error("Invalid UUID parameter provided: {}. Exiting.".format(uuid_param))
+            logger.error("Invalid UUID parameter provided: {}. Exiting.".format(args.uuid))
             sys.exit(1)
-    
+
+    if args.verify_recent_toids_change:
+        logger.info("Running to_ids verification")
+        verify_recent_toids_change()
+
     logger.info("Fetching and parsing data from MISP {}".format(config.misp_domain))
     logger.info("Using Microsoft Upload Indicator API")
     total_indicators, indicator_count_match_sentinel = get_misp_events_upload_indicators(event_uuid)

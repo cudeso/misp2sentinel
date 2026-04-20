@@ -97,3 +97,4 @@ remove_pipe_from_misp_attribute = True  # Strip composite attributes to the firs
 sourcesystem = "MISP"               # Source system name sent to Sentinel
 ms_useragent = "MISP-1.0"           # User-Agent header for API requests
 ms_check_if_exist_in_sentinel = False   # Check if indicator exists before uploading (slower)
+timeframe_toids_change = "1d"           # Timeframe for --verify-recent-toids-change
