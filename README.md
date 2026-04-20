@@ -239,15 +239,35 @@ python script.py --uuid <event-uuid>
 
 ### Deleting indicators when to_ids changes
 
-When an analyst sets the `to_ids` flag to `False` on a MISP attribute, the corresponding indicator should no longer be in Sentinel. Use the `--verify-recent-toids-change` flag to find these attributes and delete the matching indicators from Sentinel:
+When an analyst sets the `to_ids` flag to `False` on a MISP attribute, the corresponding indicator should no longer be in Sentinel. Use the `--verify-recent-toids-change` flag to find these attributes and revoke the matching indicators in Sentinel:
 
 ```
 python script.py --verify-recent-toids-change
 ```
 
-This queries MISP for attributes where `to_ids` was recently set to `False`, looks them up in Sentinel and deletes any matches. Only indicators whose source matches `sourcesystem` (default `"MISP"`) are considered, so indicators from other feeds are never affected. The timeframe is controlled by `timeframe_toids_change` in `config.py` (default: `"1d"`). The flag can be combined with `--uuid`.
+This queries MISP for attributes where `to_ids` was recently set to `False`, looks them up in Sentinel and revokes any matches. Only indicators whose source matches `sourcesystem` (default `"MISP"`) are considered, so indicators from other feeds are never affected. The timeframe is controlled by `timeframe_toids_change` in `config.py` (default: `"1d"`). The flag can be combined with `--uuid`.
 
-Set `dry_run = True` to preview which indicators would be deleted without actually removing them.
+Set `dry_run = True` to preview which indicators would be revoked without actually removing them.
+
+### Deleting outdated indicators
+
+Use the `--delete-outdated-indicators` flag to remove indicators whose `validUntil` date has passed:
+
+```
+python script.py --delete-outdated-indicators
+```
+
+This queries Sentinel for all indicators from the configured `sourcesystem` whose `validUntil` is in the past, and revokes them in batches of 100. A 15-second pause between batches gives Sentinel time to process each revocation before the next query. The flag can be combined with `--uuid`.
+
+Set `dry_run = True` to preview which indicators would be revoked without actually removing them.
+
+### How indicator deletion works
+
+The management API `DELETE` endpoint (`management.azure.com`) **cannot** delete indicators that were uploaded via the STIX Objects Upload API (`api.ti.sentinel.azure.com`). They live in different backing stores. The management API's `queryIndicators` aggregates from both stores, but `DELETE` only operates on its own store — returning `200`.
+
+The fix is to re-upload indicators with `revoked: true` via the same STIX Objects Upload API. The [STIX specification](https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html) defines revocation as permanent invalidation: *"Revoked objects are no longer considered valid by the object creator."*
+
+Both `--verify-recent-toids-change` and `--delete-outdated-indicators` use this revocation mechanism.
 
 ### Verifying your configuration
 

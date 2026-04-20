@@ -59,13 +59,13 @@ def get_indicators(logger, max_indicators):
         f"/resourceGroups/{config.ms_auth.get('resourceGroupName')}"
         f"/providers/Microsoft.OperationalInsights/workspaces/{config.ms_auth.get('workspaceName')}"
         f"/providers/Microsoft.SecurityInsights/threatIntelligence/main/queryIndicators"
-        f"?api-version=2025-06-01"
+        f"?api-version=2025-09-01"
     )
     
     payload = {
         "pageSize": max_indicators,
         "includeDisabled": False,
-        "sources": ["MISP"],
+        "sources": [config.sourcesystem],
         "sortBy": [
             {
                 "itemKey": "lastUpdatedTimeUtc",
@@ -91,23 +91,64 @@ def get_indicators(logger, max_indicators):
     return None
 
 
-def delete_indicator(logger, headers, indicator_name):
-    delete_url = (
-        f"https://management.azure.com/subscriptions/{config.ms_auth.get('subscription_id')}"
-        f"/resourceGroups/{config.ms_auth.get('resourceGroupName')}"
-        f"/providers/Microsoft.OperationalInsights/workspaces/{config.ms_auth.get('workspaceName')}"
-        f"/providers/Microsoft.SecurityInsights/threatIntelligence/main/indicators/{indicator_name}"
-        f"?api-version=2025-06-01"
-    )
-    
-    try:
-        response = requests.delete(delete_url, headers=headers, timeout=30)
-        response.raise_for_status()
-        logger.info(f"Deleted indicator successfully: {indicator_name}")
-        return True
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to delete indicator: {indicator_name} - {str(e)}")
-        return False
+def revoke_indicators(logger, headers, indicators):
+    if not indicators:
+        return 0
+
+    workspace_id = config.ms_auth["workspace_id"]
+    api_version = config.ms_api_version
+
+    if config.ms_auth["new_upload_api"]:
+        upload_url = f"https://api.ti.sentinel.azure.com/workspaces/{workspace_id}/threat-intelligence-stix-objects:upload?api-version={api_version}"
+        indicator_value_key = "stixobjects"
+    else:
+        upload_url = f"https://sentinelus.azure-api.net/{workspace_id}/threatintelligence:upload-indicators?api-version={api_version}"
+        indicator_value_key = "value"
+
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    stix_objects = []
+    for ind in indicators:
+        props = ind.get("properties", {})
+        external_id = props.get("externalId", "")
+        if not external_id:
+            name = ind.get("name", "")
+            if name:
+                external_id = f"indicator--{name}"
+            else:
+                logger.warning("Skipping indicator without externalId or name")
+                continue
+
+        stix_obj = {
+            "type": "indicator",
+            "spec_version": "2.1",
+            "id": external_id,
+            "created": props.get("created", now),
+            "modified": now,
+            "pattern": props.get("pattern", "[ipv4-addr:value = '0.0.0.0']"),
+            "pattern_type": "stix",
+            "valid_from": props.get("validFrom", now),
+            "revoked": True
+        }
+        stix_objects.append(stix_obj)
+
+    if not stix_objects:
+        return 0
+
+    revoked_count = 0
+    for i in range(0, len(stix_objects), 100):
+        batch = stix_objects[i:i + 100]
+        body = {"sourcesystem": config.sourcesystem, indicator_value_key: batch}
+        try:
+            resp = requests.post(upload_url, headers=headers, json=body, timeout=60)
+            logger.debug(f"Revoke upload response: {resp.status_code} {resp.text[:500] if resp.text else '(empty)'}")
+            if resp.status_code == 200:
+                revoked_count += len(batch)
+            else:
+                logger.error(f"Error revoking indicators (batch {i // 100}): {resp.status_code} {resp.text[:500] if resp.text else '(empty)'}")
+        except Exception as e:
+            logger.error(f"Exception revoking indicators (batch {i // 100}): {e}")
+
+    return revoked_count
 
 
 def main():
@@ -127,10 +168,8 @@ def main():
         logger.error("Failed to get authentication headers")
         return
     
-    for indicator in sentinel_indicators:
-        indicator_name = indicator.get("name")
-        if indicator_name:
-            delete_indicator(logger, headers, indicator_name)
+    revoked = revoke_indicators(logger, headers, sentinel_indicators)
+    logger.info(f"Revoked {revoked} indicators via STIX Objects API")
     
     logger.info("End MISP2Sentinel - Delete")
 
