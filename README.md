@@ -245,7 +245,7 @@ When an analyst sets the `to_ids` flag to `False` on a MISP attribute, the corre
 python script.py --verify-recent-toids-change
 ```
 
-This queries MISP for attributes where `to_ids` was recently set to `False`, looks them up in Sentinel and deletes any matches. The timeframe is controlled by `timeframe_toids_change` in `config.py` (default: `"1d"`). The flag can be combined with `--uuid`.
+This queries MISP for attributes where `to_ids` was recently set to `False`, looks them up in Sentinel and deletes any matches. Only indicators whose source matches `sourcesystem` (default `"MISP"`) are considered, so indicators from other feeds are never affected. The timeframe is controlled by `timeframe_toids_change` in `config.py` (default: `"1d"`). The flag can be combined with `--uuid`.
 
 Set `dry_run = True` to preview which indicators would be deleted without actually removing them.
 
