@@ -214,12 +214,14 @@ misp_flatten_attributes = True      # Flatten MISP object attributes into the ev
 misp_remove_eventreports = True     # Remove event reports from MISP events before processing
 ms_useragent = "MISP-1.0"           # User-Agent header sent to the Sentinel API
 ms_check_if_exist_in_sentinel = False   # Check if an indicator already exists in Sentinel before uploading
+timeframe_toids_change = "1d"           # Timeframe for --verify-recent-toids-change
 ```
 
 - `write_parsed_eventid`: When set to `True`, the script logs the event IDs it processes. Useful for debugging which events are being picked up by the filters.
 - `misp_remove_eventreports`: When set to `True`, event reports attached to MISP events are stripped before processing. Defaults to `True`.
 - `ms_useragent`: The User-Agent string sent with API requests. Defaults to `"MISP-1.0"`.
-- `ms_check_if_exist_in_sentinel`: When set to `True`, the script checks whether each indicator already exists in Sentinel before uploading. This avoids duplicates but adds an API call per indicator, which slows down the synchronisation. Requires `subscription_id`, `resourceGroupName` and `workspaceName` in `ms_auth` (see the [deleting indicators](#deleting-indicators-from-sentinel) section).
+- `ms_check_if_exist_in_sentinel`: When set to `True`, the script checks whether each indicator already exists in Sentinel before uploading. This avoids duplicates but adds an API call per indicator, which slows down the synchronisation. Requires `subscription_id`, `resourceGroupName` and `workspaceName` in `ms_auth` (see the [deleting indicators](#deleting-indicators-when-to_ids-changes) section).
+- `timeframe_toids_change`: The MISP search timeframe used by `--verify-recent-toids-change`. Defaults to `"1d"`. Accepts the same formats as MISP timestamps (e.g. `"12h"`, `"7d"`).
 
 ## Running the script
 
@@ -232,8 +234,20 @@ python script.py
 You can also process a single MISP event by passing its UUID:
 
 ```
-python script.py <event-uuid>
+python script.py --uuid <event-uuid>
 ```
+
+### Deleting indicators when to_ids changes
+
+When an analyst sets the `to_ids` flag to `False` on a MISP attribute, the corresponding indicator should no longer be in Sentinel. Use the `--verify-recent-toids-change` flag to find these attributes and delete the matching indicators from Sentinel:
+
+```
+python script.py --verify-recent-toids-change
+```
+
+This queries MISP for attributes where `to_ids` was recently set to `False`, looks them up in Sentinel and deletes any matches. The timeframe is controlled by `timeframe_toids_change` in `config.py` (default: `"1d"`). The flag can be combined with `--uuid`.
+
+Set `dry_run = True` to preview which indicators would be deleted without actually removing them.
 
 ### Verifying your configuration
 
@@ -377,7 +391,7 @@ MISP2Sentinel requires outbound HTTPS (port 443) access to the hosts listed belo
 | `login.microsoftonline.com` | Always | Azure AD OAuth2 token acquisition |
 | `api.ti.sentinel.azure.com` | When `new_upload_api` is `True` | Uploading STIX indicators to Sentinel |
 | `sentinelus.azure-api.net` | When `new_upload_api` is `False` (legacy) | Uploading indicators via the legacy API |
-| `management.azure.com` | When using `ms_check_if_exist_in_sentinel` or `delete-from-azure.py` | Querying and deleting indicators in Sentinel |
+| `management.azure.com` | When using `ms_check_if_exist_in_sentinel`, `--verify-recent-toids-change` or `delete-from-azure.py` | Querying and deleting indicators in Sentinel |
 
 If you use Azure Key Vault for secret storage, also allow access to your vault endpoint (`<vault-name>.vault.azure.net`).
 
