@@ -56,7 +56,7 @@ ms_max_indicators_request = 100     # Throttle max: 100 indicators per request
 ms_max_requests_minute = 100        # Throttle max: 100 requests per minute
 ms_useragent = 'MISP-1.0'
 ms_target_product = 'Azure Sentinel'    # targetProduct
-ms_api_version = "2022-07-01"       # Upload Indicators API version
+ms_api_version = "2024-02-01-preview"       # Upload Indicators API version
 
 # Graph API only settings
 ms_passiveonly = False                  # passiveOnly
