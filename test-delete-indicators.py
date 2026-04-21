@@ -4,13 +4,14 @@ Reproducer for Microsoft Sentinel Threat Intelligence delete inconsistency.
 Steps:
   1. List the 100 most recent threat intelligence indicators in the workspace.
   2. DELETE each one by name via the management API.
-  3. Query the same list again and report how many of the just-deleted
+  3. GET each deleted indicator by name (expecting HTTP 404).
+  4. Query the same list again and report how many of the just-deleted
      indicators are still returned.
 
-Expected behaviour: the second query returns 0 of the deleted indicators.
-Observed behaviour: the second query keeps returning the same 100 indicators,
-even though every individual DELETE returned HTTP 200 and an immediate
-GET on each indicator returns HTTP 404.
+Expected behaviour: step 3 returns 404 for all, step 4 returns 0 of the
+deleted indicators.
+Observed behaviour: step 3 returns 404 for all (resource is gone), but
+step 4 keeps returning the same 100 indicators.
 """
 
 import logging
@@ -83,6 +84,11 @@ def delete_indicator(session, name):
     return session.delete(url, timeout=60).status_code
 
 
+def get_indicator(session, name):
+    url = "{}/indicators/{}?api-version={}".format(BASE_URL, name, API_VERSION)
+    return session.get(url, timeout=60).status_code
+
+
 def extract_value(props):
     """Pull the IOC value out of an indicator's properties."""
     for entry in props.get("parsedPattern", []) or []:
@@ -116,14 +122,28 @@ def main():
             log.error("DELETE %s -> %s", name, status)
     log.info("Step 2: DELETE results -> success=%d failed=%d", ok, fail)
 
-    log.info("Step 3: re-querying the latest %d indicators", HOW_MANY)
+    log.info("Step 3: GET each deleted indicator by name (expect 404)")
+    got_404 = got_200 = got_other = 0
+    for name in deleted_names:
+        status = get_indicator(session, name)
+        if status == 404:
+            got_404 += 1
+        elif status == 200:
+            got_200 += 1
+        else:
+            got_other += 1
+            log.warning("GET %s -> %s", name, status)
+    log.info("Step 3: GET results -> 404=%d 200=%d other=%d",
+             got_404, got_200, got_other)
+
+    log.info("Step 4: re-querying the latest %d indicators", HOW_MANY)
     again = list_latest_indicators(session, HOW_MANY)
     again_by_name = {i.get("name"): i for i in again}
     still_listed = [n for n in deleted_names if n in again_by_name]
 
-    log.info("Step 3: query returned %d indicators", len(again))
+    log.info("Step 4: query returned %d indicators", len(again))
     log.info(
-        "Step 3: %d of the %d deleted indicators are STILL returned by queryIndicators",
+        "Step 4: %d of the %d deleted indicators are STILL returned by queryIndicators",
         len(still_listed), len(deleted_names),
     )
 
