@@ -345,15 +345,25 @@ def get_misp_events_upload_indicators(event_uuid=None):
         with open(PARSED_INDICATORS_FILE_NAME, "w") as fp:
             fp.write("")
 
+    decay_search_params = {}
+    if config.misp_decay_model_enabled:
+        decay_search_params["includeDecayScore"] = True
+        if config.misp_decay_model_id is not None:
+            decay_search_params["decayingModelId"] = config.misp_decay_model_id
+        logger.info("MISP Decay Model support enabled (model_id={}, min_score={}, exclude_decayed={})".format(
+            config.misp_decay_model_id, config.misp_decay_model_min_score, config.misp_decay_model_exclude_decayed))
+
+    indicator_count_decay_skipped = 0
+
     while remaining_misp_pages:
         result_set = []
 
         try:
             if "limit" in misp_event_filters:
-                result = misp.search(controller='events', return_format='json', **misp_event_filters)
+                result = misp.search(controller='events', return_format='json', **misp_event_filters, **decay_search_params)
                 remaining_misp_pages = False # Limits are set in the misp_event_filters
             else:
-                result = misp.search(controller='events', return_format='json', **misp_event_filters, limit=config.misp_event_limit_per_page, page=misp_page)
+                result = misp.search(controller='events', return_format='json', **misp_event_filters, **decay_search_params, limit=config.misp_event_limit_per_page, page=misp_page)
 
             if len(result) > 0:
                 logger.info("Received MISP events page {} with {} events".format(misp_page, len(result)))
@@ -382,6 +392,31 @@ def get_misp_events_upload_indicators(event_uuid=None):
                                     if vu_dt <= datetime.datetime.now(datetime.timezone.utc):
                                         logger.debug("Skipping indicator because valid_until is in the past: {} {}".format(misp_indicator.valid_until, element["value"]))
                                         continue
+
+                                if config.misp_decay_model_enabled:
+                                    decay_scores = element.get("decay_score", [])
+                                    if decay_scores:
+                                        model_id = config.misp_decay_model_id
+                                        selected = None
+                                        for ds in decay_scores:
+                                            if model_id is None or str(ds.get("DecayingModel", {}).get("id", "")) == str(model_id):
+                                                selected = ds
+                                                break
+                                        if selected:
+                                            if config.misp_decay_model_exclude_decayed and selected.get("decayed", False):
+                                                logger.info("Skipping fully decayed indicator: {}".format(element["value"]))
+                                                indicator_count_decay_skipped += 1
+                                                continue
+                                            score = selected.get("score")
+                                            if score is not None:
+                                                if score < config.misp_decay_model_min_score:
+                                                    logger.info("Skipping indicator with decay score {:.1f} below threshold {}: {}".format(
+                                                        score, config.misp_decay_model_min_score, element["value"]))
+                                                    indicator_count_decay_skipped += 1
+                                                    continue
+                                                if config.misp_decay_model_override_confidence:
+                                                    misp_indicator.confidence = int(round(score))
+                                                    logger.debug("Decay score {:.1f} applied as confidence for {}".format(score, element["value"]))
 
                                 if misp_indicator.pattern is not None:
                                     is_custom = element.get("type", "") in MISP_CUSTOM_ATTRIBUTE
@@ -429,7 +464,7 @@ def get_misp_events_upload_indicators(event_uuid=None):
             remaining_misp_pages = False
             logger.error("Error when processing data from MISP {} - {} - {}".format(e, sys.exc_info()[2].tb_lineno, sys.exc_info()[1]))
 
-    return indicator_count, indicator_count_match_sentinel
+    return indicator_count, indicator_count_match_sentinel, indicator_count_decay_skipped
 
 
 def init_configuration():
@@ -473,6 +508,16 @@ def init_configuration():
         config.timeframe_toids_change = "1d"
     if not hasattr(config, "ms_delete_api_version"):
         config.ms_delete_api_version = "2025-09-01"
+    if not hasattr(config, "misp_decay_model_enabled"):
+        config.misp_decay_model_enabled = False
+    if not hasattr(config, "misp_decay_model_id"):
+        config.misp_decay_model_id = None
+    if not hasattr(config, "misp_decay_model_override_confidence"):
+        config.misp_decay_model_override_confidence = True
+    if not hasattr(config, "misp_decay_model_min_score"):
+        config.misp_decay_model_min_score = 0
+    if not hasattr(config, "misp_decay_model_exclude_decayed"):
+        config.misp_decay_model_exclude_decayed = True
 
 
 
@@ -534,7 +579,7 @@ def main():
 
     logger.info("Fetching and parsing data from MISP {}".format(config.misp_domain))
     logger.info("Using Microsoft Upload Indicator API")
-    total_indicators, indicator_count_match_sentinel = get_misp_events_upload_indicators(event_uuid)
+    total_indicators, indicator_count_match_sentinel, indicator_count_decay_skipped = get_misp_events_upload_indicators(event_uuid)
     logger.info("Pushed {} indicators from MISP to Sentinel".format(total_indicators))
     if config.ms_check_if_exist_in_sentinel:
         logger.info("Skipped {} MISP indicators because they were already in Sentinel".format(indicator_count_match_sentinel))
@@ -546,6 +591,8 @@ def main():
     logger.info("  Indicators pushed to Sentinel         : {}".format(total_indicators))
     if config.ms_check_if_exist_in_sentinel:
         logger.info("  Indicators skipped (already present)  : {}".format(indicator_count_match_sentinel))
+    if config.misp_decay_model_enabled:
+        logger.info("  Indicators skipped (decay model)      : {}".format(indicator_count_decay_skipped))
     if args.verify_recent_toids_change:
         logger.info("  to_ids deletions (deleted/not found)  : {} / {}".format(toids_deleted, toids_not_found))
     if args.delete_outdated_indicators:

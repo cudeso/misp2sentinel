@@ -26,18 +26,40 @@ if __name__ == '__main__':
     except:
         print("Unable to authenticate to MISP")
 
+    if getattr(config, "misp_decay_model_enabled", False):
+        print("Testing MISP Decay Model support")
+        try:
+            result = misp.search(
+                controller='events',
+                return_format='json',
+                **config.misp_event_filters,
+                includeDecayScore=True,
+                limit=1
+            )
+            if result:
+                attributes = result[0].get("Event", {}).get("Attribute", [])
+                has_decay = any("decay_score" in attr for attr in attributes)
+                if has_decay:
+                    print("MISP Decay Model API OK (decay scores present in attributes)")
+                else:
+                    print("MISP Decay Model API OK (no decay scores on sampled attributes - verify decay models are enabled in MISP)")
+            else:
+                print("No events returned - cannot verify decay model support")
+        except Exception as e:
+            print("MISP Decay Model test failed: {}".format(e))
+
     print("Testing Azure")
     data = {'client_id': config.ms_auth['client_id'], 'scope': config.ms_auth['scope'], 'client_secret': config.ms_auth['client_secret'], 'grant_type': 'client_credentials'}
     tenant = config.ms_auth['tenant']
     access_token_response = requests.post(f'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token', data=data).json()
-    
+
     print(access_token_response)
     if 'access_token' in access_token_response:
         print("Got an access token")
         print("Azure connection OK")
     elif "error" in access_token_response:
         print("Azure connection not OK. Insufficient permissions or wrong credentials supplied")
-        sys.exit("Exiting. Error: {}".format(access_token_response["error_description"]))        
+        sys.exit("Exiting. Error: {}".format(access_token_response["error_description"]))
     else:
-        print("Azure connection not OK.") 
+        print("Azure connection not OK.")
         sys.exit("Exiting. No access token found.")

@@ -99,3 +99,13 @@ sourcesystem = "MISP"               # Source system name sent to Sentinel
 ms_useragent = "MISP-1.0"           # User-Agent header for API requests
 ms_check_if_exist_in_sentinel = False   # Check if indicator exists before uploading (slower)
 timeframe_toids_change = "1d"           # Timeframe for --verify-recent-toids-change
+
+
+####
+# MISP Decay Model settings (https://www.misp-project.org/2019/09/12/Decaying-Of-Indicators.html)
+#
+misp_decay_model_enabled = False            # Enable MISP Decay Model support
+misp_decay_model_id = None                  # Decay model ID to use (None = all applicable models)
+misp_decay_model_override_confidence = True # Replace tag-based confidence with the decay score
+misp_decay_model_min_score = 0              # Skip indicators whose decay score is below this value (0 = disabled)
+misp_decay_model_exclude_decayed = True     # Skip indicators that MISP has marked as fully decayed
